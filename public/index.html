@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quick6 FuelHouse</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Performance nutrition + training plans for football & track athletes. Position-aware, dining-hall-real, coach-ready.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --ink:#0C0D10; --surface:#16181D; --surface2:#1E2128; --surface3:#262A33;
+  --line:#2A2E37; --line-soft:#22262E;
+  --text:#F2F4F8; --muted:#9AA3B2; --faint:#6B7480;
+  --accent:#FF4A2E;                 /* Quick6 speed accent — swap to his brand color here */
+  --accent-soft:#331410; --accent-2:#FFC531;
+  --good:#35D07F; --good-soft:#0F2A1E; --warn:#F6B93B; --warn-soft:#2E2410;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 20px 50px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--ink);color:var(--text);font-family:"Inter",system-ui,-apple-system,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(1000px 600px at 88% -8%, color-mix(in srgb,var(--accent) 15%,transparent), transparent 60%),
+             radial-gradient(900px 600px at 0% 110%, color-mix(in srgb,var(--accent-2) 8%,transparent), transparent 55%);}
+.wrap{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:0 18px 60px}
+.mono{font-variant-numeric:tabular-nums}
+h1,h2,h3,.disp{font-family:"Oswald",sans-serif;letter-spacing:.01em}
+
+/* header */
+header{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:26px 18px 8px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.brand{display:flex;align-items:center;gap:12px}
+.q6{font-family:"Oswald";font-weight:700;font-size:26px;letter-spacing:.02em;line-height:.9}
+.q6 .six{color:var(--accent)}
+.q6 .sub{display:block;font-size:11px;letter-spacing:.32em;color:var(--muted);font-weight:600;margin-top:2px}
+.hos{font-family:"Oswald";font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);border:1px solid var(--line);border-radius:20px;padding:6px 11px;white-space:nowrap}
+
+/* hero */
+.hero{position:relative;z-index:1;text-align:center;padding:22px 18px 10px;max-width:640px;margin:0 auto}
+.hero h1{font-size:clamp(30px,7vw,46px);font-weight:700;line-height:1.02;text-transform:uppercase;margin:0 0 10px}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p{color:var(--muted);font-size:15px;max-width:52ch;margin:0 auto}
+
+/* form */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-top:20px}
+.card-h{font-family:"Oswald";font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 14px;display:flex;align-items:center;gap:9px}
+.card-h svg{width:16px;height:16px;flex:none}
+.btn svg{width:17px;height:17px;flex:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:520px){.grid3{grid-template-columns:1fr 1fr}}
+label.f{display:block}
+.lab{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:0 0 6px}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:12px 13px;color:var(--text);font-size:15px;font-family:inherit;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA3B2' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+textarea{resize:vertical;min-height:60px}
+.field{margin-top:12px}
+.seg{display:flex;gap:6px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:5px}
+.seg button{flex:1;appearance:none;border:none;background:none;color:var(--muted);font-family:"Oswald";font-weight:600;font-size:14px;letter-spacing:.05em;text-transform:uppercase;padding:9px;border-radius:9px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#170a06}
+.hw{display:flex;gap:8px}.hw .u{flex:none;width:64px}
+.toggle{display:flex;align-items:center;gap:11px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-top:12px;cursor:pointer}
+.toggle .box{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;transition:.12s}
+.toggle.on .box{background:var(--accent);border-color:var(--accent)}
+.toggle .box svg{width:13px;height:13px;color:#170a06;opacity:0}
+.toggle.on .box svg{opacity:1}
+.toggle .t{font-size:13.5px;font-weight:600}.toggle .d{font-size:12px;color:var(--muted)}
+.btn{appearance:none;border:none;width:100%;background:var(--accent);color:#170a06;font-family:"Oswald";font-weight:700;font-size:17px;letter-spacing:.06em;text-transform:uppercase;padding:15px;border-radius:13px;cursor:pointer;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:9px;transition:filter .12s}
+.btn:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.7;cursor:default}
+.btn.ghost{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+.spin{width:17px;height:17px;border:2px solid rgba(23,10,6,.4);border-top-color:#170a06;border-radius:50%;animation:sp .7s linear infinite}
+.btn.ghost .spin{border-color:rgba(255,255,255,.25);border-top-color:var(--text)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:12px;padding:13px;color:var(--text);font-size:13.5px;margin-top:14px}
+
+/* roster */
+.rcount{margin-left:auto;font-family:"Oswald";font-size:13px;color:var(--faint)}
+.roster{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.rrow{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--line-soft);border-radius:13px;padding:11px 12px;cursor:pointer;transition:border-color .12s}
+.rrow:hover{border-color:var(--accent)}
+.rbadge{width:40px;height:40px;border-radius:11px;background:var(--accent);color:#170a06;font-family:"Oswald";font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;flex:none}
+.rinfo{flex:1;min-width:0}
+.rname{font-family:"Oswald";font-weight:600;font-size:16px;line-height:1.1;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsub{font-size:12px;color:var(--muted);margin-top:2px}
+.rcal{font-family:"Oswald";font-weight:700;font-size:16px;color:var(--accent-2);text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.rcal span{display:block;font-size:9px;color:var(--faint);letter-spacing:.06em;font-weight:600}
+.rdel{flex:none;appearance:none;border:none;background:none;color:var(--faint);font-size:15px;padding:6px 4px;border-radius:8px;cursor:pointer}
+.rdel:hover{color:var(--accent)}
+.backlink{appearance:none;border:none;background:none;color:var(--muted);font-family:"Oswald";font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:6px 2px;margin-bottom:2px}
+.backlink svg{width:15px;height:15px}
+.backlink:hover{color:var(--text)}
+
+/* plan output */
+.ath-head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.ath-badge{width:52px;height:52px;border-radius:13px;background:var(--accent);color:#170a06;font-family:"Oswald";font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center;flex:none}
+.ath-name{font-family:"Oswald";font-weight:700;font-size:24px;line-height:1;text-transform:uppercase}
+.ath-meta{font-size:12.5px;color:var(--muted);margin-top:4px}
+.plan-headline{font-family:"Oswald";font-weight:600;font-size:18px;color:var(--accent-2);margin:2px 0 4px}
+.summary{font-size:14px;color:var(--text);line-height:1.55;margin-bottom:16px}
+.macros{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+@media(max-width:460px){.macros{grid-template-columns:1fr 1fr}}
+.macro{background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center}
+.macro.cal{background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 22%,var(--surface2)),var(--surface2));border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.macro .n{font-family:"Oswald";font-weight:700;font-size:27px;line-height:1;font-variant-numeric:tabular-nums}
+.macro .l{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:5px;font-weight:600}
+.basis{font-size:11px;color:var(--faint);text-align:center;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.mgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+@media(max-width:520px){.mgrid{grid-template-columns:1fr 1fr}}
+.mfield span{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:0 0 5px}
+.mfield span i{font-style:normal;opacity:.7}
+.mfield input{padding:10px 11px;font-size:14px}
+.mtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:9px}
+.mtile{background:var(--surface2);border:1px solid var(--line-soft);border-radius:12px;padding:11px 8px;text-align:center}
+.mtile .mv{font-family:"Oswald";font-weight:700;font-size:19px;color:var(--accent-2);font-variant-numeric:tabular-nums;line-height:1}
+.mtile .ml{font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-top:5px;font-weight:600}
+.safenote{font-size:11.5px;color:var(--good);background:var(--good-soft);border:1px solid color-mix(in srgb,var(--good) 25%,transparent);border-radius:10px;padding:8px 11px;margin-top:10px;display:flex;align-items:flex-start;gap:7px}
+.safenote svg{width:14px;height:14px;flex:none;margin-top:1px}
+.watch .wh svg{width:14px;height:14px;vertical-align:-2px}
+
+.sec{margin-top:16px}
+.sec-h{font-family:"Oswald";font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.sec-h svg{width:16px;height:16px}
+.meal{border-left:2px solid var(--line);padding:2px 0 2px 12px;margin-bottom:12px}
+.meal-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.meal-name{font-family:"Oswald";font-weight:600;font-size:15px;letter-spacing:.02em}
+.meal-time{font-size:11px;color:var(--faint)}
+.meal-cal{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.meal ul{margin:6px 0 0;padding-left:17px}.meal li{font-size:13.5px;color:var(--text);margin-bottom:3px;line-height:1.45}
+.tips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.tips li{display:flex;gap:9px;font-size:13.5px;line-height:1.45;color:var(--text)}
+.tips li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:7px}
+.block{font-size:13.5px;line-height:1.55;color:var(--text);background:var(--surface2);border:1px solid var(--line-soft);border-radius:12px;padding:13px}
+.tday{display:flex;gap:11px;background:var(--surface2);border:1px solid var(--line-soft);border-radius:11px;padding:11px;margin-bottom:8px}
+.tday .d{font-family:"Oswald";font-weight:600;font-size:12px;color:var(--accent);white-space:nowrap;flex:none;width:74px;text-transform:uppercase;letter-spacing:.04em}
+.tday .s{font-size:13px;color:var(--text);line-height:1.45}
+.supp{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:8px 0;border-top:1px solid var(--line-soft)}
+.supp:first-child{border-top:none}
+.supp b{color:var(--text);font-weight:600}.supp span{color:var(--muted)}
+.supp .opt{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2);border:1px solid color-mix(in srgb,var(--accent-2) 35%,transparent);border-radius:20px;padding:2px 7px;flex:none;margin-top:1px}
+.watch{background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:12px;padding:13px}
+.watch .wh{font-family:"Oswald";font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--warn);margin-bottom:8px}
+.watch ul{margin:0;padding-left:17px}.watch li{font-size:13px;color:var(--text);margin-bottom:4px;line-height:1.45}
+.disclaimer{font-size:11px;color:var(--faint);line-height:1.5;text-align:center;margin-top:18px;padding:0 6px}
+.actions{display:flex;gap:10px;margin-top:16px}
+.actions .btn{margin-top:0}
+.copied{color:var(--good)!important}
+
+@media print{
+  @page{margin:12mm}
+  body{background:#fff!important;color:#141414!important}
+  body::before,.hero,header .hos,.backlink,.actions,#pdfBtn{display:none!important}
+  .wrap{max-width:none;padding:0}
+  header{padding:2px 0 10px;border-bottom:2px solid #E8412A;margin:0 0 12px;max-width:none}
+  .q6{color:#141414}.q6 .six{color:#E8412A}.q6 .sub{color:#666}
+  .card{box-shadow:none;border:none;padding:0;background:#fff;margin:0}
+  .ath-name,.macro .n,.meal-name{color:#141414!important}
+  .sec-h,.plan-headline{color:#E8412A!important}
+  .summary,.meal li,.tips li,.tday .s,.watch li,.supp b,.block{color:#222!important}
+  .macro,.block,.tday,.mtile,.watch,.macro.cal{background:#f5f5f5!important;border:1px solid #ddd!important}
+  .macro .l,.meal-time,.meal-cal,.ml,.basis,.disclaimer,.rsub,.supp span{color:#555!important}
+  .ath-badge{background:#E8412A!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .mtile .mv,.rcal{color:#141414!important}
+  .meal{border-left:2px solid #E8412A;break-inside:avoid}
+  .sec{break-inside:avoid}
+  .safenote{background:#eef7f0!important;color:#1a7a4a!important;border-color:#bfe3cd!important}
+  .disclaimer{display:block!important;margin-top:14px;border-top:1px solid #ddd;padding-top:10px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="q6">QUICK<span class="six">6</span><span class="sub">FUELHOUSE</span></div>
+  </div>
+  <div class="hos">House of Speed</div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Fuel the athlete.<br><em>Build the program.</em></h1>
+    <p>Enter an athlete and their goal. Get a performance nutrition + training plan built for their position — dining-hall real, coach-ready, in seconds.</p>
+  </div>
+
+  <div id="view">
+    <!-- form injected here -->
+  </div>
+</div>
+
+<script>
+const byId=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const view=byId('view');
+let META={sports:{football:[],track:[]},activity:[],goals:[]};
+const OB={ sport:'football', sex:'male', diningHall:true };
+
+const I={
+  bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>',
+  meal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 2v7a3 3 0 0 0 3 3v10M6 2v7M9 2v7M17 2c-1.5 0-3 2-3 6s1.5 5 3 5v7"/></svg>',
+  cart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1.5"/><circle cx="18" cy="21" r="1.5"/><path d="M2 3h3l2.5 13h11l2-8H6"/></svg>',
+  drop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>',
+  flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21V4a1 1 0 0 1 1-1h13l-2 5 2 5H5"/></svg>',
+  run:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="14" cy="5" r="2"/><path d="M12 21l2-5-3-3 1-5 4 3 3 1M6 22l3-5"/></svg>',
+  bed:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20v-8h20v8M2 12V7M22 12V9a2 2 0 0 0-2-2h-9v5"/></svg>',
+  pill:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="4"/><path d="M12 8v8"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>',
+  doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>',
+  roster:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
+  regen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>',
+  download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
+};
+
+/* ---------- roster (saved on this device) ---------- */
+function loadRoster(){ try{ return JSON.parse(localStorage.getItem('q6_roster')||'[]'); }catch(_){ return []; } }
+function saveRoster(r){ try{ localStorage.setItem('q6_roster',JSON.stringify(r)); }catch(_){} }
+function upsert(rec){ const r=loadRoster(); const i=r.findIndex(x=>x.id===rec.id); if(i>=0) r[i]=rec; else r.unshift(rec); saveRoster(r); }
+function removeAthlete(id){ saveRoster(loadRoster().filter(x=>x.id!==id)); }
+function uid(){ return 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+function renderHome(){
+  const roster=loadRoster();
+  if(!roster.length){ startNew(); return; }
+  view.innerHTML=`
+  <div class="card">
+    <div class="card-h">${I.roster} Your roster <span class="rcount">${roster.length}</span></div>
+    <div class="roster">${roster.map(rosterRow).join('')}</div>
+    <button class="btn" id="addBtn">${I.plus} Add athlete</button>
+  </div>`;
+  view.querySelectorAll('[data-open]').forEach(el=>el.onclick=(e)=>{ if(e.target.closest('[data-del]')) return; openAthlete(el.dataset.open); });
+  view.querySelectorAll('[data-del]').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); const a=loadRoster().find(x=>x.id===b.dataset.del); if(!confirm('Remove '+((a&&a.name)||'this athlete')+' from the roster?')) return; removeAthlete(b.dataset.del); renderHome(); });
+  byId('addBtn').onclick=startNew;
+}
+function rosterRow(a){
+  const t=a.plan&&a.plan.targets;
+  const sub=[a.plan?a.plan.athlete.positionLabel:'', t?t.goalLabel:''].filter(Boolean).join(' · ');
+  return `<div class="rrow" data-open="${a.id}">
+    <div class="rbadge">${esc(initials(a.name))}</div>
+    <div class="rinfo"><div class="rname">${esc(a.name||'Athlete')}</div><div class="rsub">${esc(sub||(a.form&&a.form.sport==='track'?'Track & Field':'Football'))}</div></div>
+    ${t?`<div class="rcal">${esc(t.calories)}<span>kcal</span></div>`:''}
+    <button class="rdel" data-del="${a.id}" aria-label="Remove">✕</button>
+  </div>`;
+}
+function startNew(){ Object.assign(OB,{ id:uid(), name:'', age:'', wt:'', ft:'', inch:'', sport:'football', sex:'male', position:undefined, goal:undefined, activity:'high', diningHall:true, restrictions:'', notes:'' }); renderForm(); }
+function openAthlete(id){ const a=loadRoster().find(x=>x.id===id); if(!a) return renderHome(); Object.assign(OB, a.form||{}, {id:a.id}); if(a.plan) renderPlan(a.plan); else renderForm(); }
+
+function positionOptions(){
+  return META.sports[OB.sport].map(p=>`<option value="${p.key}"${p.key===OB.position?' selected':''}>${esc(p.label)}</option>`).join('');
+}
+function goalOptions(){ return META.goals.map(g=>`<option value="${g.key}"${g.key===OB.goal?' selected':''}>${esc(g.label)}</option>`).join(''); }
+function activityOptions(){ return META.activity.map(a=>`<option value="${a.key}"${a.key===OB.activity?' selected':''}>${esc(a.label)}</option>`).join(''); }
+
+function renderForm(){
+  const backNav = loadRoster().length ? `<button class="backlink" id="backBtn">${I.back} Roster</button>` : '';
+  view.innerHTML=`${backNav}
+  <div class="card">
+    <div class="card-h">${I.bolt} Athlete</div>
+    <label class="f"><div class="lab">Athlete name</div><input id="fName" placeholder="e.g. Marcus Johnson" value="${esc(OB.name||'')}"></label>
+
+    <div class="field"><div class="lab">Sport</div>
+      <div class="seg" id="sportSeg">
+        <button data-sport="football" class="${OB.sport==='football'?'on':''}">Football</button>
+        <button data-sport="track" class="${OB.sport==='track'?'on':''}">Track &amp; Field</button>
+      </div>
+    </div>
+
+    <div class="grid2 field">
+      <label class="f"><div class="lab">Position / Event</div><select id="fPos">${positionOptions()}</select></label>
+      <label class="f"><div class="lab">Goal</div><select id="fGoal">${goalOptions()}</select></label>
+    </div>
+
+    <div class="grid3 field">
+      <label class="f"><div class="lab">Age</div><input id="fAge" type="number" inputmode="numeric" placeholder="19" value="${esc(OB.age||'')}"></label>
+      <div><div class="lab">Sex</div>
+        <div class="seg" id="sexSeg">
+          <button data-sex="male" class="${OB.sex==='male'?'on':''}">M</button>
+          <button data-sex="female" class="${OB.sex==='female'?'on':''}">F</button>
+        </div>
+      </div>
+      <label class="f"><div class="lab">Weight (lb)</div><input id="fWt" type="number" inputmode="numeric" placeholder="215" value="${esc(OB.wt||'')}"></label>
+    </div>
+
+    <div class="grid2 field">
+      <div><div class="lab">Height</div>
+        <div class="hw">
+          <div class="u"><input id="fFt" type="number" inputmode="numeric" placeholder="ft" value="${esc(OB.ft||'')}"></div>
+          <div class="u"><input id="fIn" type="number" inputmode="numeric" placeholder="in" value="${esc(OB.inch||'')}"></div>
+        </div>
+      </div>
+      <label class="f"><div class="lab">Training load</div><select id="fAct">${activityOptions()}</select></label>
+    </div>
+
+    <div class="toggle ${OB.diningHall?'on':''}" id="dhToggle">
+      <div class="box">${I.check}</div>
+      <div><div class="t">Dining-hall mode</div><div class="d">Cafeteria-buildable meals on a student budget</div></div>
+    </div>
+
+    <label class="f field"><div class="lab">Allergies / restrictions <span style="color:var(--faint)">(optional)</span></div><input id="fRestrict" placeholder="e.g. lactose intolerant, no pork" value="${esc(OB.restrictions||'')}"></label>
+    <label class="f field"><div class="lab">Coach notes <span style="color:var(--faint)">(optional)</span></div><textarea id="fNotes" placeholder="e.g. freshman, needs to add 15 lb by fall camp">${esc(OB.notes||'')}</textarea></label>
+
+    <div class="field"><div class="lab">Performance testing <span style="color:var(--faint)">(optional — sharpens the training)</span></div>
+      <div class="mgrid">${((META.metrics&&META.metrics[OB.sport])||[]).map(m=>`<label class="mfield"><span>${esc(m.label)}${m.unit?` <i>${esc(m.unit)}</i>`:''}</span><input data-m="${m.key}" inputmode="decimal" placeholder="${esc(m.ph)}" value="${esc((OB.metrics&&OB.metrics[m.key])||'')}"></label>`).join('')}</div>
+    </div>
+
+    <button class="btn" id="goBtn">${I.bolt} Build the plan</button>
+    <div id="formErr"></div>
+  </div>`;
+
+  byId('sportSeg').querySelectorAll('[data-sport]').forEach(b=>b.onclick=()=>{ OB.sport=b.dataset.sport; OB.position=undefined; OB.goal=undefined; captureForm(); renderForm(); });
+  byId('sexSeg').querySelectorAll('[data-sex]').forEach(b=>b.onclick=()=>{ OB.sex=b.dataset.sex; captureForm(); renderForm(); });
+  byId('dhToggle').onclick=()=>{ OB.diningHall=!OB.diningHall; captureForm(); renderForm(); };
+  byId('goBtn').onclick=submitPlan;
+  if(byId('backBtn')) byId('backBtn').onclick=renderHome;
+}
+
+function captureForm(){
+  const g=id=>{ const el=byId(id); return el?el.value:undefined; };
+  if(byId('fName')!==null){
+    OB.name=g('fName'); OB.age=g('fAge'); OB.wt=g('fWt'); OB.ft=g('fFt'); OB.inch=g('fIn');
+    OB.position=g('fPos'); OB.goal=g('fGoal'); OB.activity=g('fAct');
+    OB.restrictions=g('fRestrict'); OB.notes=g('fNotes');
+    OB.metrics=OB.metrics||{}; document.querySelectorAll('[data-m]').forEach(inp=>{ OB.metrics[inp.dataset.m]=inp.value; });
+  }
+}
+
+function validOB(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft; if(!(age>=10&&age<=60)) return 'Enter a valid age.'; if(!(wt>=60&&wt<=520)) return 'Enter a valid weight in pounds.'; if(!(ft>=4&&ft<=7)) return 'Enter a valid height (feet).'; return ''; }
+function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{} }; }
+async function requestPlan(){
+  const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obToBody())});
+  const d=await r.json(); if(d.error) throw new Error(d.message||d.error);
+  if(!OB.id) OB.id=uid();
+  upsert({ id:OB.id, name:d.athlete.name||OB.name||'Athlete', form:{...OB}, plan:d, savedAt:Date.now() });
+  return d;
+}
+async function submitPlan(){
+  captureForm();
+  const err=byId('formErr'); if(err) err.innerHTML='';
+  const v=validOB(); if(v){ if(err) err.innerHTML=`<div class="err">${esc(v)}</div>`; return; }
+  const btn=byId('goBtn'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Building the plan…'; }
+  try{ renderPlan(await requestPlan()); }
+  catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=`${I.bolt} Build the plan`; } if(err) err.innerHTML=`<div class="err">${esc(e.message||'Could not build the plan.')}</div>`; }
+}
+async function regenPlan(){
+  const btn=byId('regenBtn'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> New plan…'; }
+  try{ renderPlan(await requestPlan()); }
+  catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=`${I.regen} New plan`; } alert(e.message||'Could not generate a new plan.'); }
+}
+
+function initials(n){ const p=(n||'Athlete').trim().split(/\s+/); return ((p[0]?.[0]||'A')+(p[1]?.[0]||'')).toUpperCase(); }
+
+function renderPlan(d){
+  const t=d.targets, pl=d.plan, a=d.athlete;
+  const meals=(pl.dayMeals||[]).map(m=>`
+    <div class="meal">
+      <div class="meal-top"><span class="meal-name">${esc(m.meal)}${m.time?` <span class="meal-time">${esc(m.time)}</span>`:''}</span><span class="meal-cal">${m.approxCals?esc(m.approxCals)+' kcal':''}${m.approxProtein?' · '+esc(m.approxProtein)+'g P':''}</span></div>
+      <ul>${(m.items||[]).map(it=>`<li>${esc(it)}</li>`).join('')}</ul>
+    </div>`).join('');
+  const tips=(pl.diningHallTips||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+  const tdays=(pl.training&&pl.training.week||[]).map(w=>`<div class="tday"><div class="d">${esc(w.day)}</div><div class="s">${esc(w.session)}</div></div>`).join('');
+  const supps=(pl.supplements||[]).map(s=>`<div class="supp"><span class="opt">Optional</span><div><b>${esc(s.name)}</b> <span>— ${esc(s.why)}</span></div></div>`).join('');
+  const watch=(pl.watchFor||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+  const safe=(t.notes||[]).map(n=>esc(n)).join(' ');
+  const mdefs=(META.metrics&&META.metrics[OB.sport])||[];
+  const mtiles=mdefs.filter(m=>OB.metrics&&String(OB.metrics[m.key]||'').trim()!=='').map(m=>`<div class="mtile"><div class="mv">${esc(OB.metrics[m.key])}</div><div class="ml">${esc(m.label)}${m.unit?' '+esc(m.unit):''}</div></div>`).join('');
+
+  view.innerHTML=`
+  <div class="card" id="planCard">
+    <div class="ath-head">
+      <div class="ath-badge">${esc(initials(a.name))}</div>
+      <div>
+        <div class="ath-name">${esc(a.name||'Athlete')}</div>
+        <div class="ath-meta">${esc(a.positionLabel)} · ${esc(t.goalLabel)} · ${esc(t.weightLb)} lb${a.diningHall?' · dining-hall':''}</div>
+      </div>
+    </div>
+    ${pl.headline?`<div class="plan-headline">${esc(pl.headline)}</div>`:''}
+    ${pl.summary?`<div class="summary">${esc(pl.summary)}</div>`:''}
+
+    <div class="macros">
+      <div class="macro cal"><div class="n">${esc(t.calories)}</div><div class="l">Calories</div></div>
+      <div class="macro"><div class="n">${esc(t.protein_g)}<span style="font-size:14px">g</span></div><div class="l">Protein</div></div>
+      <div class="macro"><div class="n">${esc(t.carbs_g)}<span style="font-size:14px">g</span></div><div class="l">Carbs</div></div>
+      <div class="macro"><div class="n">${esc(t.fat_g)}<span style="font-size:14px">g</span></div><div class="l">Fat</div></div>
+    </div>
+    <div class="basis">Basis: ${esc(t.tdee)} kcal maintenance (${esc(t.activityLabel)}) · protein ${esc(t.proteinPerKg)} g/kg</div>
+    ${safe?`<div class="safenote">${I.check} ${safe}</div>`:''}
+
+    <div class="sec"><div class="sec-h">${I.meal} Daily meals</div>${meals||'<div class="block">No meals returned.</div>'}</div>
+    ${tips?`<div class="sec"><div class="sec-h">${I.cart} Dining-hall &amp; budget</div><ul class="tips">${tips}</ul></div>`:''}
+    ${pl.hydration?`<div class="sec"><div class="sec-h">${I.drop} Hydration</div><div class="block">${esc(pl.hydration)}</div></div>`:''}
+    ${pl.gameDay?`<div class="sec"><div class="sec-h">${I.flag} Game / meet day</div><div class="block">${esc(pl.gameDay)}</div></div>`:''}
+    ${pl.recovery?`<div class="sec"><div class="sec-h">${I.bed} Recovery</div><div class="block">${esc(pl.recovery)}</div></div>`:''}
+    ${(mtiles||pl.perfNotes)?`<div class="sec"><div class="sec-h">${I.run} Performance testing</div>${mtiles?`<div class="mtiles">${mtiles}</div>`:''}${pl.perfNotes?`<div class="block" style="margin-top:${mtiles?'10px':'0'}">${esc(pl.perfNotes)}</div>`:''}</div>`:''}
+    <div class="sec"><div class="sec-h">${I.run} Training — ${esc(pl.training&&pl.training.focus||d.profile.focus)}</div>${tdays||'<div class="block">No training returned.</div>'}</div>
+    ${supps?`<div class="sec"><div class="sec-h">${I.pill} Supplements <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">— food first, all optional</span></div><div class="card" style="margin-top:0;box-shadow:none;padding:4px 14px">${supps}</div></div>`:''}
+    ${watch?`<div class="sec"><div class="watch"><div class="wh">${I.flag} Coach — watch for</div><ul>${watch}</ul></div></div>`:''}
+
+    <div class="disclaimer disclaimer-hide">Quick6 FuelHouse gives coaching guidance for healthy athletes — it is <b>not medical or dietary treatment</b>. A trainer should review every plan, and any athlete with a medical condition, injury, or eating concern should see a physician or registered dietitian.</div>
+  </div>
+
+  <button class="btn" id="pdfBtn">${I.download} Save as PDF / Print</button>
+  <div class="actions">
+    <button class="btn ghost" id="backBtn">${I.back} Roster</button>
+    <button class="btn ghost" id="copyBtn">${I.doc} Copy</button>
+  </div>
+  <div class="actions">
+    <button class="btn ghost" id="editBtn">${I.edit} Edit profile</button>
+    <button class="btn ghost" id="regenBtn">${I.regen} New plan</button>
+  </div>`;
+
+  byId('pdfBtn').onclick=()=>window.print();
+  byId('backBtn').onclick=renderHome;
+  byId('editBtn').onclick=()=>{ renderForm(); window.scrollTo({top:0,behavior:'smooth'}); };
+  byId('regenBtn').onclick=regenPlan;
+  byId('copyBtn').onclick=()=>copyPlan(d);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function copyPlan(d){
+  const t=d.targets,pl=d.plan,a=d.athlete;
+  let s=`QUICK6 FUELHOUSE — ${(a.name||'Athlete').toUpperCase()}\n${a.positionLabel} · ${t.goalLabel} · ${t.weightLb} lb\n`;
+  if(pl.headline) s+=`\n${pl.headline}\n`;
+  if(pl.summary) s+=`${pl.summary}\n`;
+  s+=`\nDAILY TARGETS\n  Calories: ${t.calories}\n  Protein: ${t.protein_g} g\n  Carbs: ${t.carbs_g} g\n  Fat: ${t.fat_g} g\n`;
+  s+=`\nDAILY MEALS\n`; (pl.dayMeals||[]).forEach(m=>{ s+=`• ${m.meal}${m.time?' ('+m.time+')':''}${m.approxCals?' ~'+m.approxCals+' kcal':''}\n`; (m.items||[]).forEach(it=>s+=`   - ${it}\n`); });
+  if((pl.diningHallTips||[]).length){ s+=`\nDINING-HALL & BUDGET\n`; pl.diningHallTips.forEach(x=>s+=`• ${x}\n`); }
+  if(pl.hydration) s+=`\nHYDRATION\n${pl.hydration}\n`;
+  if(pl.gameDay) s+=`\nGAME/MEET DAY\n${pl.gameDay}\n`;
+  if(pl.recovery) s+=`\nRECOVERY\n${pl.recovery}\n`;
+  if(pl.perfNotes) s+=`\nPERFORMANCE\n${pl.perfNotes}\n`;
+  s+=`\nTRAINING — ${(pl.training&&pl.training.focus)||''}\n`; ((pl.training&&pl.training.week)||[]).forEach(w=>s+=`• ${w.day}: ${w.session}\n`);
+  if((pl.supplements||[]).length){ s+=`\nSUPPLEMENTS (optional, food first)\n`; pl.supplements.forEach(x=>s+=`• ${x.name} — ${x.why}\n`); }
+  if((pl.watchFor||[]).length){ s+=`\nCOACH — WATCH FOR\n`; pl.watchFor.forEach(x=>s+=`• ${x}\n`); }
+  s+=`\nNot medical advice — coaching guidance a trainer reviews.`;
+  navigator.clipboard.writeText(s).then(()=>{ const b=byId('copyBtn'); b.classList.add('copied'); b.innerHTML=`${I.check} Copied`; setTimeout(()=>{ b.classList.remove('copied'); b.innerHTML=`${I.doc} Copy plan`; },1600); }).catch(()=>{});
+}
+
+// boot
+fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; renderHome(); }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
+</script>
+</body>
+</html>
