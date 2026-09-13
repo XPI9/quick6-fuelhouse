@@ -9,6 +9,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/favicon-64.png" sizes="64x64" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0C0D10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FuelHouse">
 <style>
 :root{
   --ink:#0C0D10; --surface:#16181D; --surface2:#1E2128; --surface3:#262A33;
@@ -570,6 +578,7 @@ async function sharePlan(d){
 const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
 fetch('/demos.json').then(r=>r.json()).then(m=>{ DEMOS=m||{}; }).catch(()=>{ DEMOS={}; });
 fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; renderHome(); }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
+if('serviceWorker' in navigator){ addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
 </script>
 </body>
 </html>
