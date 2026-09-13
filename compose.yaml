@@ -1,0 +1,20 @@
+# Quick6 FuelHouse — VPS compose (runs ALONGSIDE xpi-schedule & xpi-bd, never touches them)
+# Binds ONLY to the Docker bridge (172.18.0.1) so Caddy can reach it but the public
+# internet cannot (ufw allows only 22/80/443). Caddy reverse-proxies the subdomain to it.
+#   quick6-fuelhouse -> 172.18.0.1:3300
+
+name: quick6-fuelhouse
+
+services:
+  fuelhouse:
+    build: .
+    container_name: quick6-fuelhouse
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3300"
+    dns:
+      - "1.1.1.1"
+      - "8.8.8.8"
+    ports:
+      - "172.18.0.1:3300:3300"
