@@ -257,6 +257,40 @@ textarea{resize:vertical;min-height:60px}
   <div class="powered">Powered by <b>XPI Solutions</b></div>
 </div>
 
+<style>
+#leadGate{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(6,7,9,.82);backdrop-filter:blur(6px)}
+#leadGate[hidden]{display:none}
+.lead-card{width:100%;max-width:430px;background:#14161c;border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:26px 22px 20px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+.lead-mark{font-weight:800;letter-spacing:.14em;font-size:13px;color:#fff;opacity:.85}
+.lead-mark span{color:var(--accent)}
+.lead-card h2{margin:12px 0 4px;font-size:22px;color:#fff;font-weight:800}
+.lead-card p{margin:0 0 14px;color:#aab;font-size:14px;line-height:1.4}
+.lead-card label{display:block;margin:10px 0;color:#ccd;font-size:12.5px;font-weight:600}
+.lead-card input{width:100%;margin-top:5px;padding:12px 13px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:#0e1014;color:#fff;font-size:15px;box-sizing:border-box}
+.lead-card input:focus{outline:none;border-color:var(--accent)}
+.lead-go{width:100%;margin-top:16px;padding:14px;border:0;border-radius:12px;background:var(--accent);color:#111;font-weight:800;font-size:15.5px;cursor:pointer}
+.lead-go:disabled{opacity:.6;cursor:default}
+.lead-err{color:#ff8a75;font-size:13px;min-height:0;margin-bottom:2px}
+.lead-err:not(:empty){min-height:18px;margin-bottom:6px}
+.lead-fine{margin-top:14px;text-align:center;color:#889;font-size:11.5px}
+.lead-fine b{color:#aab}
+</style>
+
+<div id="leadGate" hidden aria-modal="true" role="dialog">
+  <div class="lead-card">
+    <div class="lead-mark">XPI<span>&middot;</span> ATHLETE FUEL</div>
+    <h2>Coach, start here</h2>
+    <p>Quick intro so your athletes' plans stay tied to you. Takes 10 seconds.</p>
+    <div class="lead-err" id="leadErr"></div>
+    <label>Your name<input id="lcName" autocomplete="name" placeholder="Coach name"></label>
+    <label>School / program<input id="lcSchool" placeholder="e.g. Central High Football"></label>
+    <label>Email<input id="lcEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@school.org"></label>
+    <label>Cell &nbsp;<span style="color:#889;font-weight:500">(optional)</span><input id="lcPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 555-5555"></label>
+    <button id="lcGo" class="lead-go">Start building plans &rarr;</button>
+    <div class="lead-fine">Powered by <b>XPI&nbsp;Solutions</b></div>
+  </div>
+</div>
+
 <script>
 const byId=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -420,7 +454,24 @@ async function requestPlan(){
   upsert({ id:OB.id, name:d.athlete.name||OB.name||'Athlete', form:{...OB}, plan:d, savedAt:Date.now() });
   return d;
 }
+function needCoach(){ try{ return !!(window.__BRAND&&window.__BRAND.leadCapture) && !localStorage.getItem('af_coach'); }catch(e){ return false; } }
+function openLeadGate(){ var g=byId('leadGate'); if(!g) return; g.hidden=false; var n=byId('lcName'); if(n) setTimeout(function(){ try{n.focus();}catch(e){} },60); }
+function closeLeadGate(){ var g=byId('leadGate'); if(g) g.hidden=true; }
+async function submitLead(){
+  var name=(byId('lcName').value||'').trim(), school=(byId('lcSchool').value||'').trim(), email=(byId('lcEmail').value||'').trim(), phone=(byId('lcPhone').value||'').trim();
+  var err=byId('leadErr'); err.textContent='';
+  if(name.length<2){ err.textContent='Enter your name.'; return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.textContent='Enter a valid email.'; return; }
+  var btn=byId('lcGo'); var old=btn.innerHTML; btn.disabled=true; btn.textContent='Saving…';
+  var rec={ name:name, school:school, email:email, phone:phone, at:Date.now() };
+  try{ localStorage.setItem('af_coach', JSON.stringify(rec)); }catch(e){}
+  try{ await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ name:name, school:school, email:email, phone:phone, brand:(window.__BRAND&&window.__BRAND.short)||'' })}); }catch(e){}
+  btn.disabled=false; btn.innerHTML=old;
+  closeLeadGate();
+  submitPlan();
+}
 async function submitPlan(){
+  if(needCoach()){ openLeadGate(); return; }
   captureForm();
   const err=byId('formErr'); if(err) err.innerHTML='';
   const v=validOB(); if(v){ if(err) err.innerHTML=`<div class="err">${esc(v)}</div>`; return; }
@@ -553,6 +604,8 @@ async function sharePlan(d){
 
 // boot
 const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
+(function(){ var b=byId('lcGo'); if(b) b.addEventListener('click', submitLead);
+  ['lcName','lcSchool','lcEmail','lcPhone'].forEach(function(id){ var el=byId(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitLead(); } }); }); })();
 fetch((window.__BRAND&&window.__BRAND.demos)||'/demos.json').then(r=>r.json()).then(m=>{ DEMOS=m||{}; }).catch(()=>{ DEMOS={}; });
 fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; renderHome(); }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
 if('serviceWorker' in navigator){ addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }

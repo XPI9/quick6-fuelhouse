@@ -94,6 +94,49 @@ app.post('/api/plan', async (req, res) => {
   }
 });
 
+// --- leads: capture a coach before the first plan (XPI brand only calls this) ---
+const LEADS_FILE = path.join(__dirname, 'data', 'leads.jsonl');
+const emailOk = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(s || ''));
+
+app.post('/api/lead', (req, res) => {
+  const b = req.body || {};
+  const rec = {
+    ts: new Date().toISOString(),
+    brand: (b.brand || BRAND.short || '').toString().slice(0, 40),
+    name: (b.name || '').toString().slice(0, 120),
+    school: (b.school || '').toString().slice(0, 160),
+    email: (b.email || '').toString().slice(0, 160),
+    phone: (b.phone || '').toString().slice(0, 40),
+    ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim(),
+  };
+  if (rec.name.length < 2 || !emailOk(rec.email)) return res.status(400).json({ error: 'bad_input' });
+  try { fs.mkdirSync(path.dirname(LEADS_FILE), { recursive: true }); fs.appendFileSync(LEADS_FILE, JSON.stringify(rec) + '\n'); }
+  catch (e) { console.error('[lead write]', e); }
+  console.log('[lead]', rec.brand, '|', rec.name, '|', rec.school, '|', rec.email, '|', rec.phone);
+  // Fire-and-forget forward to email/webhook (FormSubmit, Zapier, etc.) — never blocks the coach.
+  const fwd = process.env.LEAD_FORWARD_URL;
+  if (fwd && typeof fetch === 'function') {
+    fetch(fwd, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...rec, _subject: `New ${rec.brand} lead — ${rec.name}${rec.school ? ' (' + rec.school + ')' : ''}` }) }).catch(() => {});
+  }
+  res.json({ ok: true });
+});
+
+// Admin: pull the lead list (key-gated). GET /api/leads?key=YOUR_KEY  (&format=csv)
+app.get('/api/leads', (req, res) => {
+  const key = process.env.LEAD_ADMIN_KEY;
+  if (!key || req.query.key !== key) return res.status(403).json({ error: 'forbidden' });
+  let rows = [];
+  try { rows = fs.readFileSync(LEADS_FILE, 'utf8').trim().split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean); }
+  catch { rows = []; }
+  if (req.query.format === 'csv') {
+    const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const head = ['ts', 'brand', 'name', 'school', 'email', 'phone', 'ip'];
+    const csv = [head.join(','), ...rows.map((r) => head.map((h) => esc(r[h])).join(','))].join('\n');
+    return res.type('text/csv').set('Content-Disposition', 'attachment; filename="leads.csv"').send(csv);
+  }
+  res.json({ count: rows.length, leads: rows.reverse() });
+});
+
 // --- brand: serve a per-brand index (no flash) + dynamic manifest ---
 const INDEX_HTML = (() => {
   const B = BRAND;
@@ -109,11 +152,12 @@ const INDEX_HTML = (() => {
     .split('/icons/favicon-64.png').join(B.iconDir + '/favicon-64.png')
     .split('/icons/apple-touch-icon.png').join(B.iconDir + '/apple-touch-icon.png')
     .replace('content="FuelHouse"', `content="${B.short}"`)
-    .replace('</head>', `<style>:root{--accent:${B.accent}}</style><script>window.__BRAND=${JSON.stringify({ name: B.name, short: B.short, accent: B.accent, tagline: B.tagline, demos: B.demos })}</script></head>`);
+    .replace('</head>', `<style>:root{--accent:${B.accent}}</style><script>window.__BRAND=${JSON.stringify({ name: B.name, short: B.short, accent: B.accent, tagline: B.tagline, demos: B.demos, leadCapture: !!B.leadCapture })}</script></head>`);
 })();
 function serveIndex(_req, res) { res.type('html').send(INDEX_HTML); }
 app.get('/', serveIndex);
 app.get('/index.html', serveIndex);
+app.get('/pitch', (_req, res) => res.type('html').sendFile(path.join(__dirname, 'public', 'pitch.html')));
 app.get('/manifest.webmanifest', (_req, res) => res.type('application/manifest+json').json({
   name: BRAND.name, short_name: BRAND.short,
   description: 'Performance nutrition + training plans for football & track athletes.',

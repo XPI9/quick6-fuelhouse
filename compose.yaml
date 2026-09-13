@@ -35,3 +35,6 @@ services:
       - "8.8.8.8"
     ports:
       - "172.18.0.1:3301:3301"
+    volumes:
+      # Persist captured coach leads across rebuilds (leads.jsonl lives here).
+      - ./data-xpi:/app/data
