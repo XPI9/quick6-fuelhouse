@@ -597,7 +597,9 @@ async function sharePlan(d){
   var raf=null;
   // Hold on screen — dismiss only when they tap Enter (or anywhere).
   var killed=false;
-  function done(){ if(killed) return; killed=true; if(raf) cancelAnimationFrame(raf); intro.classList.add('gone'); setTimeout(function(){ if(intro.parentNode) intro.parentNode.removeChild(intro); },600); }
+  function done(){ if(killed) return; killed=true; if(raf) cancelAnimationFrame(raf); intro.classList.add('gone'); setTimeout(function(){ if(intro.parentNode) intro.parentNode.removeChild(intro); },600);
+    // XPI brand: ask the coach to sign in the moment they enter (backstop still guards Build).
+    if(typeof needCoach==='function' && needCoach()) setTimeout(function(){ openLeadGate(); },400); }
   var enter=byId('introEnter'); if(enter) enter.addEventListener('click', function(e){ e.stopPropagation(); done(); });
   intro.addEventListener('click', done);
 })();
