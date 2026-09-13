@@ -120,6 +120,9 @@ textarea{resize:vertical;min-height:60px}
 .mtile .ml{font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-top:5px;font-weight:600}
 .safenote{font-size:11.5px;color:var(--good);background:var(--good-soft);border:1px solid color-mix(in srgb,var(--good) 25%,transparent);border-radius:10px;padding:8px 11px;margin-top:10px;display:flex;align-items:flex-start;gap:7px}
 .safenote svg{width:14px;height:14px;flex:none;margin-top:1px}
+.injbox{display:flex;gap:9px;align-items:flex-start;background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:12px;padding:12px 13px;margin-bottom:14px;font-size:13px;line-height:1.5;color:var(--text)}
+.injbox svg{width:16px;height:16px;color:var(--warn);flex:none;margin-top:2px}
+.injbox b{color:var(--warn)}
 .watch .wh svg{width:14px;height:14px;vertical-align:-2px}
 
 .sec{margin-top:16px}
@@ -355,6 +358,13 @@ function renderForm(){
 
     <label class="f field"><div class="lab">Training equipment <span style="color:var(--faint)">(what they can train with)</span></div><select id="fEquip">${equipmentOptions()}</select></label>
 
+    <label class="f field"><div class="lab">Injury status</div><select id="fInjury">
+      <option value="healthy"${(OB.injury||'healthy')==='healthy'?' selected':''}>Healthy — no issues</option>
+      <option value="returning"${OB.injury==='returning'?' selected':''}>Returning from injury (doctor-cleared)</option>
+      <option value="injured"${OB.injury==='injured'?' selected':''}>Currently injured — not cleared</option>
+    </select></label>
+    <label class="f field" id="injDescWrap"${(OB.injury&&OB.injury!=='healthy')?'':' hidden'}><div class="lab">What / where <span style="color:var(--faint)">(optional)</span></div><input id="fInjuryDesc" placeholder="e.g. right hamstring strain, ankle sprain" value="${esc(OB.injuryDesc||'')}"></label>
+
     <div class="toggle ${OB.diningHall?'on':''}" id="dhToggle">
       <div class="box">${I.check}</div>
       <div><div class="t">Dining-hall mode</div><div class="d">Cafeteria-buildable meals on a student budget</div></div>
@@ -375,6 +385,7 @@ function renderForm(){
   byId('sexSeg').querySelectorAll('[data-sex]').forEach(b=>b.onclick=()=>{ OB.sex=b.dataset.sex; captureForm(); renderForm(); });
   byId('dhToggle').onclick=()=>{ OB.diningHall=!OB.diningHall; captureForm(); renderForm(); };
   byId('goBtn').onclick=submitPlan;
+  const inj=byId('fInjury'); if(inj) inj.onchange=()=>{ const w=byId('injDescWrap'); if(w) w.hidden=(inj.value==='healthy'); };
   if(byId('backBtn')) byId('backBtn').onclick=renderHome;
 }
 
@@ -383,13 +394,14 @@ function captureForm(){
   if(byId('fName')!==null){
     OB.name=g('fName'); OB.age=g('fAge'); OB.wt=g('fWt'); OB.ft=g('fFt'); OB.inch=g('fIn');
     OB.position=g('fPos'); OB.goal=g('fGoal'); OB.activity=g('fAct'); OB.equipment=g('fEquip');
+    OB.injury=g('fInjury'); OB.injuryDesc=g('fInjuryDesc');
     OB.restrictions=g('fRestrict'); OB.notes=g('fNotes');
     OB.metrics=OB.metrics||{}; document.querySelectorAll('[data-m]').forEach(inp=>{ OB.metrics[inp.dataset.m]=inp.value; });
   }
 }
 
 function validOB(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft; if(!(age>=10&&age<=60)) return 'Enter a valid age.'; if(!(wt>=60&&wt<=520)) return 'Enter a valid weight in pounds.'; if(!(ft>=4&&ft<=7)) return 'Enter a valid height (feet).'; return ''; }
-function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', equipment:OB.equipment||'gym', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{} }; }
+function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', equipment:OB.equipment||'gym', injury:OB.injury||'healthy', injuryDesc:OB.injuryDesc||'', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{} }; }
 async function requestPlan(){
   const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obToBody())});
   const d=await r.json(); if(d.error) throw new Error(d.message||d.error);
@@ -439,6 +451,7 @@ function renderPlan(d){
     </div>
     ${pl.headline?`<div class="plan-headline">${esc(pl.headline)}</div>`:''}
     ${pl.summary?`<div class="summary">${esc(pl.summary)}</div>`:''}
+    ${pl.injuryNote?`<div class="injbox">${I.flag}<div><b>Injury — read this first.</b> ${esc(pl.injuryNote)}</div></div>`:''}
 
     <div class="macros">
       <div class="macro cal"><div class="n">${esc(t.calories)}</div><div class="l">Calories</div></div>
@@ -488,6 +501,7 @@ function planText(d){
   let s=`QUICK6 FUELHOUSE — ${(a.name||'Athlete').toUpperCase()}\n${a.positionLabel} · ${t.goalLabel} · ${t.weightLb} lb\n`;
   if(pl.headline) s+=`\n${pl.headline}\n`;
   if(pl.summary) s+=`${pl.summary}\n`;
+  if(pl.injuryNote) s+=`\n⚠ INJURY — READ FIRST\n${pl.injuryNote}\n`;
   s+=`\nDAILY TARGETS\n  Calories: ${t.calories}\n  Protein: ${t.protein_g} g\n  Carbs: ${t.carbs_g} g\n  Fat: ${t.fat_g} g\n`;
   s+=`\nDAILY MEALS\n`; (pl.dayMeals||[]).forEach(m=>{ s+=`• ${m.meal}${m.time?' ('+m.time+')':''}${m.approxCals?' ~'+m.approxCals+' kcal':''}\n`; (m.items||[]).forEach(it=>s+=`   - ${it}\n`); });
   if((pl.diningHallTips||[]).length){ s+=`\nDINING-HALL & BUDGET\n`; pl.diningHallTips.forEach(x=>s+=`• ${x}\n`); }

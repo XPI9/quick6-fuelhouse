@@ -67,13 +67,15 @@ app.post('/api/plan', async (req, res) => {
     .join(', ');
 
   const equipment = ['gym', 'basic', 'home'].includes(b.equipment) ? b.equipment : 'gym';
+  const injury = ['healthy', 'returning', 'injured'].includes(b.injury) ? b.injury : 'healthy';
+  const injuryDesc = (b.injuryDesc || '').toString().slice(0, 200);
 
   const athlete = {
     name: (b.name || '').toString().slice(0, 80),
     age, sex, sport, diningHall: !!b.diningHall,
     restrictions: (b.restrictions || '').toString().slice(0, 300),
     notes: (b.notes || '').toString().slice(0, 300),
-    metricsText, equipment,
+    metricsText, equipment, injury, injuryDesc,
   };
 
   try {
