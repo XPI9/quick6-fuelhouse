@@ -287,7 +287,20 @@ textarea{resize:vertical;min-height:60px}
     <label>Email<input id="lcEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@school.org"></label>
     <label>Cell &nbsp;<span style="color:#889;font-weight:500">(optional)</span><input id="lcPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 555-5555"></label>
     <button id="lcGo" class="lead-go">Start building plans &rarr;</button>
+    <div class="lead-fine" id="lcTrial"></div>
     <div class="lead-fine">Powered by <b>XPI&nbsp;Solutions</b></div>
+  </div>
+</div>
+
+<div id="actGate" hidden aria-modal="true" role="dialog">
+  <div class="lead-card">
+    <div class="lead-mark">XPI<span>&middot;</span> ATHLETE FUEL</div>
+    <h2>Ready to put it on your team?</h2>
+    <p id="actMsg">Your free trial has ended.</p>
+    <div class="lead-err" id="actErr"></div>
+    <label>Activation code<input id="acCode" autocomplete="off" placeholder="Enter your code"></label>
+    <button id="acGo" class="lead-go">Activate &rarr;</button>
+    <div class="lead-fine">No code yet? Activate your program — <b>xpisolution@gmail.com</b></div>
   </div>
 </div>
 
@@ -447,9 +460,14 @@ function captureForm(){
 
 function validOB(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft; if(!(age>=10&&age<=60)) return 'Enter a valid age.'; if(!(wt>=60&&wt<=520)) return 'Enter a valid weight in pounds.'; if(!(ft>=4&&ft<=7)) return 'Enter a valid height (feet).'; return ''; }
 function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', equipment:OB.equipment||'gym', injury:OB.injury||'healthy', injuryDesc:OB.injuryDesc||'', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{} }; }
+function coachRec(){ try{ return JSON.parse(localStorage.getItem('af_coach')||'null'); }catch(e){ return null; } }
 async function requestPlan(){
-  const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obToBody())});
-  const d=await r.json(); if(d.error) throw new Error(d.message||d.error);
+  const body=obToBody(); body.coach=coachRec();
+  const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(r.status===402 && d.error==='trial_over'){ var e=new Error(d.message||'Trial over'); e.trialOver=true; throw e; }
+  if(r.status===401 && d.error==='need_coach'){ var e2=new Error('signin'); e2.needCoach=true; throw e2; }
+  if(d.error) throw new Error(d.message||d.error);
   if(!OB.id) OB.id=uid();
   upsert({ id:OB.id, name:d.athlete.name||OB.name||'Athlete', form:{...OB}, plan:d, savedAt:Date.now() });
   return d;
@@ -470,6 +488,19 @@ async function submitLead(){
   closeLeadGate();
   submitPlan();
 }
+function openActivate(msg){ var g=byId('actGate'); if(!g) return; var m=byId('actMsg'); if(m&&msg) m.textContent=msg+' Enter your activation code to unlock your whole roster, or reach out to activate your program.'; g.hidden=false; var c=byId('acCode'); if(c) setTimeout(function(){ try{c.focus();}catch(e){} },60); }
+function closeActivate(){ var g=byId('actGate'); if(g) g.hidden=true; }
+async function submitActivate(){
+  var code=(byId('acCode').value||'').trim(); var err=byId('actErr'); err.textContent='';
+  if(!code){ err.textContent='Enter your activation code.'; return; }
+  var btn=byId('acGo'); var old=btn.innerHTML; btn.disabled=true; btn.textContent='Activating…';
+  try{
+    var r=await fetch('/api/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ coach:coachRec(), code:code })});
+    var d=await r.json();
+    if(d.error){ err.textContent=d.message||'That code isn’t valid.'; btn.disabled=false; btn.innerHTML=old; return; }
+    closeActivate(); submitPlan();
+  }catch(e){ err.textContent='Could not activate — try again.'; btn.disabled=false; btn.innerHTML=old; }
+}
 async function submitPlan(){
   if(needCoach()){ openLeadGate(); return; }
   captureForm();
@@ -477,12 +508,17 @@ async function submitPlan(){
   const v=validOB(); if(v){ if(err) err.innerHTML=`<div class="err">${esc(v)}</div>`; return; }
   const btn=byId('goBtn'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Building the plan…'; }
   try{ renderPlan(await requestPlan()); }
-  catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=`${I.bolt} Build the plan`; } if(err) err.innerHTML=`<div class="err">${esc(e.message||'Could not build the plan.')}</div>`; }
+  catch(e){
+    if(btn){ btn.disabled=false; btn.innerHTML=`${I.bolt} Build the plan`; }
+    if(e.trialOver){ openActivate(e.message); return; }
+    if(e.needCoach){ openLeadGate(); return; }
+    if(err) err.innerHTML=`<div class="err">${esc(e.message||'Could not build the plan.')}</div>`;
+  }
 }
 async function regenPlan(){
   const btn=byId('regenBtn'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> New plan…'; }
   try{ renderPlan(await requestPlan()); }
-  catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=`${I.regen} New plan`; } alert(e.message||'Could not generate a new plan.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=`${I.regen} New plan`; } if(e.trialOver){ openActivate(e.message); return; } if(e.needCoach){ openLeadGate(); return; } alert(e.message||'Could not generate a new plan.'); }
 }
 
 function initials(n){ const p=(n||'Athlete').trim().split(/\s+/); return ((p[0]?.[0]||'A')+(p[1]?.[0]||'')).toUpperCase(); }
@@ -607,7 +643,10 @@ async function sharePlan(d){
 // boot
 const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
 (function(){ var b=byId('lcGo'); if(b) b.addEventListener('click', submitLead);
-  ['lcName','lcSchool','lcEmail','lcPhone'].forEach(function(id){ var el=byId(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitLead(); } }); }); })();
+  ['lcName','lcSchool','lcEmail','lcPhone'].forEach(function(id){ var el=byId(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitLead(); } }); });
+  var ab=byId('acGo'); if(ab) ab.addEventListener('click', submitActivate);
+  var ac=byId('acCode'); if(ac) ac.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitActivate(); } });
+  var t=(window.__BRAND&&window.__BRAND.trial); var tn=byId('lcTrial'); if(t&&tn) tn.innerHTML='Free <b>'+t.days+'-day</b> trial &middot; no card needed'; })();
 fetch((window.__BRAND&&window.__BRAND.demos)||'/demos.json').then(r=>r.json()).then(m=>{ DEMOS=m||{}; }).catch(()=>{ DEMOS={}; });
 fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; renderHome(); }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
 if('serviceWorker' in navigator){ addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }

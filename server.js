@@ -33,6 +33,23 @@ setInterval(() => { const now = Date.now(); for (const [k, v] of _hits) { const 
 
 const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : NaN; };
 
+// --- trial + activation (XPI brand only; quick6 has trial:null and stays open) ---
+const TRIAL = BRAND.trial ? {
+  days: Number(process.env.TRIAL_DAYS || BRAND.trial.days || 3),
+  plans: Number(process.env.TRIAL_PLANS || BRAND.trial.plans || 12),
+} : null;
+const ACTIVATION_CODES = new Set((process.env.FUEL_ACTIVATION_CODES || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
+const normEmail = (e) => String(e || '').trim().toLowerCase().slice(0, 160);
+
+const COACHES_FILE = path.join(__dirname, 'data', 'coaches.json');
+let COACHES = {};
+try { COACHES = JSON.parse(fs.readFileSync(COACHES_FILE, 'utf8')) || {}; } catch { COACHES = {}; }
+let _saveT = null;
+function saveCoaches() {
+  clearTimeout(_saveT);
+  _saveT = setTimeout(() => { try { fs.mkdirSync(path.dirname(COACHES_FILE), { recursive: true }); fs.writeFileSync(COACHES_FILE, JSON.stringify(COACHES)); } catch (e) { console.error('[coaches save]', e); } }, 200);
+}
+
 app.get('/api/health', (_req, res) => res.json({ ok: true, anthropicKey: KEY_OK, model: process.env.FUEL_MODEL || 'claude-sonnet-5' }));
 
 app.get('/api/positions', (_req, res) => res.json({
@@ -68,6 +85,25 @@ app.post('/api/plan', async (req, res) => {
     .map((m) => `${m.label}: ${String(rawMetrics[m.key]).slice(0, 20)}${m.unit ? ' ' + m.unit : ''}`)
     .join(', ');
 
+  // --- trial gate: enforce BEFORE spending AI tokens ---
+  let coachRec = null;
+  if (TRIAL) {
+    const email = normEmail(b.coach && b.coach.email);
+    if (!email) return res.status(401).json({ error: 'need_coach', message: 'Please sign in to build a plan.' });
+    coachRec = COACHES[email];
+    if (!coachRec) { coachRec = COACHES[email] = { email, name: (b.coach && b.coach.name) || '', school: (b.coach && b.coach.school) || '', firstSeen: Date.now(), plans: 0, activated: false }; saveCoaches(); }
+    if (!coachRec.activated) {
+      const expired = Date.now() - coachRec.firstSeen > TRIAL.days * 86400000;
+      const overCap = coachRec.plans >= TRIAL.plans;
+      if (expired || overCap) {
+        return res.status(402).json({
+          error: 'trial_over', reason: expired ? 'time' : 'cap',
+          message: expired ? `Your ${TRIAL.days}-day free trial has ended.` : `You've used all ${TRIAL.plans} trial plans.`,
+        });
+      }
+    }
+  }
+
   const equipment = ['gym', 'basic', 'home'].includes(b.equipment) ? b.equipment : 'gym';
   const injury = ['healthy', 'returning', 'injured'].includes(b.injury) ? b.injury : 'healthy';
   const injuryDesc = (b.injuryDesc || '').toString().slice(0, 200);
@@ -83,6 +119,7 @@ app.post('/api/plan', async (req, res) => {
   try {
     const targets = computeTargets({ sex, age, heightCm, weightKg, activity, goal, profile });
     const plan = await generatePlan({ athlete, profile, targets });
+    if (coachRec && !coachRec.activated) { coachRec.plans++; saveCoaches(); }
     res.json({
       athlete: { ...athlete, positionLabel: profile.label },
       profile: { label: profile.label, focus: profile.focus, group: profile.group, groupSummary: profile.groupSummary },
@@ -92,6 +129,23 @@ app.post('/api/plan', async (req, res) => {
     console.error('[plan]', e);
     res.status(500).json({ error: 'plan_failed', message: e.message });
   }
+});
+
+// --- activate: coach enters a code (given after they pay) to unlock unlimited use ---
+app.post('/api/activate', (req, res) => {
+  if (!TRIAL) return res.json({ ok: true }); // open brand — nothing to unlock
+  const b = req.body || {};
+  const email = normEmail((b.coach && b.coach.email) || b.email);
+  const code = String(b.code || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: 'need_coach', message: 'Sign in first.' });
+  if (!code || !ACTIVATION_CODES.has(code)) return res.status(400).json({ error: 'bad_code', message: 'That code isn’t valid.' });
+  // single-use: a code can bind to only one coach
+  for (const [em, rec] of Object.entries(COACHES)) { if (rec.code === code && em !== email) return res.status(409).json({ error: 'code_used', message: 'That code is already in use.' }); }
+  const rec = COACHES[email] || (COACHES[email] = { email, firstSeen: Date.now(), plans: 0 });
+  rec.activated = true; rec.code = code; rec.activatedAt = Date.now();
+  saveCoaches();
+  console.log('[activate]', email, 'code', code);
+  res.json({ ok: true });
 });
 
 // --- leads: capture a coach before the first plan (XPI brand only calls this) ---
@@ -152,7 +206,7 @@ const INDEX_HTML = (() => {
     .split('/icons/favicon-64.png').join(B.iconDir + '/favicon-64.png')
     .split('/icons/apple-touch-icon.png').join(B.iconDir + '/apple-touch-icon.png')
     .replace('content="FuelHouse"', `content="${B.short}"`)
-    .replace('</head>', `<style>:root{--accent:${B.accent}}</style><script>window.__BRAND=${JSON.stringify({ name: B.name, short: B.short, accent: B.accent, tagline: B.tagline, demos: B.demos, leadCapture: !!B.leadCapture })}</script></head>`);
+    .replace('</head>', `<style>:root{--accent:${B.accent}}</style><script>window.__BRAND=${JSON.stringify({ name: B.name, short: B.short, accent: B.accent, tagline: B.tagline, demos: B.demos, leadCapture: !!B.leadCapture, trial: TRIAL ? { days: TRIAL.days, plans: TRIAL.plans } : null })}</script></head>`);
 })();
 function serveIndex(_req, res) { res.type('html').send(INDEX_HTML); }
 app.get('/', serveIndex);
