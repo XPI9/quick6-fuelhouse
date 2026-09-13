@@ -7,8 +7,10 @@
 
 import 'dotenv/config';
 import express from 'express';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { BRAND } from './lib/brand.js';
 import { sports, profileFor, METRICS, metricsFor, EQUIPMENT } from './lib/positions.js';
 import { computeTargets, ACTIVITY, GOALS } from './lib/nutrition.js';
 import { generatePlan } from './lib/anthropic.js';
@@ -92,11 +94,46 @@ app.post('/api/plan', async (req, res) => {
   }
 });
 
+// --- brand: serve a per-brand index (no flash) + dynamic manifest ---
+const INDEX_HTML = (() => {
+  const B = BRAND;
+  let h = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+  return h
+    .replace('<title>Quick6 FuelHouse</title>', `<title>${B.name}</title>`)
+    .replace('<div class="q6">QUICK<span class="six">6</span><span class="sub">FUELHOUSE</span></div>',
+             `<div class="q6">${B.markMain}<span class="six">${B.markAccent}</span><span class="sub">${B.markSub}</span></div>`)
+    .replace('<div class="hos">House of Speed</div>', `<div class="hos">${B.tagline}</div>`)
+    .replace('<div class="intro-mark">QUICK<span>6</span></div>', `<div class="intro-mark">${B.markMain}<span>${B.markAccent}</span></div>`)
+    .replace('<div class="intro-word">FUELHOUSE</div>', `<div class="intro-word">${B.markSub}</div>`)
+    .replace('<div class="intro-tag">House of Speed</div>', `<div class="intro-tag">${B.tagline}</div>`)
+    .split('/icons/favicon-64.png').join(B.iconDir + '/favicon-64.png')
+    .split('/icons/apple-touch-icon.png').join(B.iconDir + '/apple-touch-icon.png')
+    .replace('content="FuelHouse"', `content="${B.short}"`)
+    .replace('</head>', `<style>:root{--accent:${B.accent}}</style><script>window.__BRAND=${JSON.stringify({ name: B.name, short: B.short, accent: B.accent, tagline: B.tagline, demos: B.demos })}</script></head>`);
+})();
+function serveIndex(_req, res) { res.type('html').send(INDEX_HTML); }
+app.get('/', serveIndex);
+app.get('/index.html', serveIndex);
+app.get('/manifest.webmanifest', (_req, res) => res.type('application/manifest+json').json({
+  name: BRAND.name, short_name: BRAND.short,
+  description: 'Performance nutrition + training plans for football & track athletes.',
+  id: '/', start_url: '/?src=pwa', scope: '/', display: 'standalone',
+  display_override: ['standalone', 'minimal-ui'], orientation: 'portrait-primary',
+  background_color: '#0C0D10', theme_color: '#0C0D10',
+  categories: ['sports', 'health', 'education'],
+  icons: [
+    { src: BRAND.iconDir + '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: BRAND.iconDir + '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: BRAND.iconDir + '/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+    { src: BRAND.iconDir + '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ],
+}));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3300;
 app.listen(PORT, () => {
-  console.log(`\n  Quick6 FuelHouse  →  http://localhost:${PORT}`);
+  console.log(`\n  ${BRAND.name}  (${BRAND.key})  →  http://localhost:${PORT}`);
   console.log(`  Claude key: ${KEY_OK ? 'loaded ✓' : 'MISSING ✗ (edit .env)'}`);
   console.log(`  Model: ${process.env.FUEL_MODEL || 'claude-sonnet-5'}\n`);
 });

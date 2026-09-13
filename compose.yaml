@@ -6,6 +6,7 @@
 name: quick6-fuelhouse
 
 services:
+  # Quick6 FuelHouse (Keith Ballard, red) -> fuel.xpisolutions.com
   fuelhouse:
     build: .
     container_name: quick6-fuelhouse
@@ -13,8 +14,24 @@ services:
     env_file: .env
     environment:
       PORT: "3300"
+      FUEL_BRAND: "quick6"
     dns:
       - "1.1.1.1"
       - "8.8.8.8"
     ports:
       - "172.18.0.1:3300:3300"
+
+  # XPI Athlete Fuel (XPI, amber, for HS coaches) -> athletefuel.xpisolutions.com
+  athletefuel:
+    build: .
+    container_name: xpi-athlete-fuel
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3301"
+      FUEL_BRAND: "xpi"
+    dns:
+      - "1.1.1.1"
+      - "8.8.8.8"
+    ports:
+      - "172.18.0.1:3301:3301"
