@@ -9,7 +9,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sports, profileFor, METRICS, metricsFor } from './lib/positions.js';
+import { sports, profileFor, METRICS, metricsFor, EQUIPMENT } from './lib/positions.js';
 import { computeTargets, ACTIVITY, GOALS } from './lib/nutrition.js';
 import { generatePlan } from './lib/anthropic.js';
 
@@ -36,6 +36,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, anthropicKey: KEY_OK,
 app.get('/api/positions', (_req, res) => res.json({
   sports: sports(),
   metrics: METRICS,
+  equipment: EQUIPMENT,
   activity: Object.entries(ACTIVITY).map(([key, v]) => ({ key, label: v.label })),
   goals: Object.entries(GOALS).map(([key, v]) => ({ key, label: v.label })),
 }));
@@ -65,12 +66,14 @@ app.post('/api/plan', async (req, res) => {
     .map((m) => `${m.label}: ${String(rawMetrics[m.key]).slice(0, 20)}${m.unit ? ' ' + m.unit : ''}`)
     .join(', ');
 
+  const equipment = ['gym', 'basic', 'home'].includes(b.equipment) ? b.equipment : 'gym';
+
   const athlete = {
     name: (b.name || '').toString().slice(0, 80),
     age, sex, sport, diningHall: !!b.diningHall,
     restrictions: (b.restrictions || '').toString().slice(0, 300),
     notes: (b.notes || '').toString().slice(0, 300),
-    metricsText,
+    metricsText, equipment,
   };
 
   try {

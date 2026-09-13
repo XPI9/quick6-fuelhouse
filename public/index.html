@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 :root{
   --ink:#0C0D10; --surface:#16181D; --surface2:#1E2128; --surface3:#262A33;
@@ -137,6 +138,10 @@ textarea{resize:vertical;min-height:60px}
 .tday{display:flex;gap:11px;background:var(--surface2);border:1px solid var(--line-soft);border-radius:11px;padding:11px;margin-bottom:8px}
 .tday .d{font-family:"Oswald";font-weight:600;font-size:12px;color:var(--accent);white-space:nowrap;flex:none;width:74px;text-transform:uppercase;letter-spacing:.04em}
 .tday .s{font-size:13px;color:var(--text);line-height:1.45}
+.moves{display:flex;flex-wrap:wrap;gap:8px}
+.movechip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--text);text-decoration:none;transition:border-color .12s,color .12s}
+.movechip::before{content:"▶";color:var(--accent);font-size:8px}
+.movechip:hover{border-color:var(--accent);color:var(--accent)}
 .supp{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:8px 0;border-top:1px solid var(--line-soft)}
 .supp:first-child{border-top:none}
 .supp b{color:var(--text);font-weight:600}.supp span{color:var(--muted)}
@@ -154,9 +159,8 @@ textarea{resize:vertical;min-height:60px}
 #intro.gone{opacity:0;pointer-events:none}
 #speedfx{position:absolute;inset:0;width:100%;height:100%;opacity:.9}
 .intro-icons{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
-.ic-fly{position:absolute;left:0;color:#FF4A2E;will-change:transform;animation:icFly linear infinite}
+.ic-fly{position:absolute;left:0;color:#FF4A2E;line-height:1;will-change:transform;animation:icFly linear infinite}
 .ic-fly.w{color:#D6E2F4}
-.ic-fly svg{width:100%;height:100%;display:block}
 @keyframes icFly{from{transform:translateX(-160px)}to{transform:translateX(calc(100vw + 160px))}}
 .intro-inner{position:relative;z-index:2;text-align:center;padding:20px;max-width:560px}
 .intro-mark{font-family:"Oswald",sans-serif;font-weight:700;font-size:clamp(52px,16vw,120px);line-height:.9;letter-spacing:.01em;color:#F2F4F8;opacity:0;transform:translateX(-46px);filter:blur(9px);animation:iBurst .7s .15s cubic-bezier(.15,.85,.25,1) forwards}
@@ -261,6 +265,8 @@ const I={
   edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
   regen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>',
   download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>',
+  share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
 };
 
 /* ---------- roster (saved on this device) ---------- */
@@ -300,6 +306,7 @@ function positionOptions(){
   return META.sports[OB.sport].map(p=>`<option value="${p.key}"${p.key===OB.position?' selected':''}>${esc(p.label)}</option>`).join('');
 }
 function goalOptions(){ return META.goals.map(g=>`<option value="${g.key}"${g.key===OB.goal?' selected':''}>${esc(g.label)}</option>`).join(''); }
+function equipmentOptions(){ return (META.equipment||[]).map(e=>`<option value="${e.key}"${e.key===(OB.equipment||'gym')?' selected':''}>${esc(e.label)}</option>`).join(''); }
 function activityOptions(){ return META.activity.map(a=>`<option value="${a.key}"${a.key===OB.activity?' selected':''}>${esc(a.label)}</option>`).join(''); }
 
 function renderForm(){
@@ -342,6 +349,8 @@ function renderForm(){
       <label class="f"><div class="lab">Training load</div><select id="fAct">${activityOptions()}</select></label>
     </div>
 
+    <label class="f field"><div class="lab">Training equipment <span style="color:var(--faint)">(what they can train with)</span></div><select id="fEquip">${equipmentOptions()}</select></label>
+
     <div class="toggle ${OB.diningHall?'on':''}" id="dhToggle">
       <div class="box">${I.check}</div>
       <div><div class="t">Dining-hall mode</div><div class="d">Cafeteria-buildable meals on a student budget</div></div>
@@ -369,14 +378,14 @@ function captureForm(){
   const g=id=>{ const el=byId(id); return el?el.value:undefined; };
   if(byId('fName')!==null){
     OB.name=g('fName'); OB.age=g('fAge'); OB.wt=g('fWt'); OB.ft=g('fFt'); OB.inch=g('fIn');
-    OB.position=g('fPos'); OB.goal=g('fGoal'); OB.activity=g('fAct');
+    OB.position=g('fPos'); OB.goal=g('fGoal'); OB.activity=g('fAct'); OB.equipment=g('fEquip');
     OB.restrictions=g('fRestrict'); OB.notes=g('fNotes');
     OB.metrics=OB.metrics||{}; document.querySelectorAll('[data-m]').forEach(inp=>{ OB.metrics[inp.dataset.m]=inp.value; });
   }
 }
 
 function validOB(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft; if(!(age>=10&&age<=60)) return 'Enter a valid age.'; if(!(wt>=60&&wt<=520)) return 'Enter a valid weight in pounds.'; if(!(ft>=4&&ft<=7)) return 'Enter a valid height (feet).'; return ''; }
-function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{} }; }
+function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', equipment:OB.equipment||'gym', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{} }; }
 async function requestPlan(){
   const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obToBody())});
   const d=await r.json(); if(d.error) throw new Error(d.message||d.error);
@@ -421,7 +430,7 @@ function renderPlan(d){
       <div class="ath-badge">${esc(initials(a.name))}</div>
       <div>
         <div class="ath-name">${esc(a.name||'Athlete')}</div>
-        <div class="ath-meta">${esc(a.positionLabel)} · ${esc(t.goalLabel)} · ${esc(t.weightLb)} lb${a.diningHall?' · dining-hall':''}</div>
+        <div class="ath-meta">${esc(a.positionLabel)} · ${esc(t.goalLabel)} · ${esc(t.weightLb)} lb${a.diningHall?' · dining-hall':''}${OB.equipment==='home'?' · bodyweight':OB.equipment==='basic'?' · DB/bands':''}</div>
       </div>
     </div>
     ${pl.headline?`<div class="plan-headline">${esc(pl.headline)}</div>`:''}
@@ -443,22 +452,25 @@ function renderPlan(d){
     ${pl.recovery?`<div class="sec"><div class="sec-h">${I.bed} Recovery</div><div class="block">${esc(pl.recovery)}</div></div>`:''}
     ${(mtiles||pl.perfNotes)?`<div class="sec"><div class="sec-h">${I.run} Performance testing</div>${mtiles?`<div class="mtiles">${mtiles}</div>`:''}${pl.perfNotes?`<div class="block" style="margin-top:${mtiles?'10px':'0'}">${esc(pl.perfNotes)}</div>`:''}</div>`:''}
     <div class="sec"><div class="sec-h">${I.run} Training — ${esc(pl.training&&pl.training.focus||d.profile.focus)}</div>${tdays||'<div class="block">No training returned.</div>'}</div>
+    ${(pl.moves&&pl.moves.length)?`<div class="sec"><div class="sec-h">${I.play} How-to demos <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">&mdash; tap a move to watch</span></div><div class="moves">${pl.moves.map(m=>`<a class="movechip" href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to do '+m+' proper form')}" target="_blank" rel="noopener">${esc(m)}</a>`).join('')}</div></div>`:''}
     ${supps?`<div class="sec"><div class="sec-h">${I.pill} Supplements <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">— food first, all optional</span></div><div class="card" style="margin-top:0;box-shadow:none;padding:4px 14px">${supps}</div></div>`:''}
     ${watch?`<div class="sec"><div class="watch"><div class="wh">${I.flag} Coach — watch for</div><ul>${watch}</ul></div></div>`:''}
 
     <div class="disclaimer disclaimer-hide">Quick6 FuelHouse gives coaching guidance for healthy athletes — it is <b>not medical or dietary treatment</b>. A trainer should review every plan, and any athlete with a medical condition, injury, or eating concern should see a physician or registered dietitian.</div>
   </div>
 
-  <button class="btn" id="pdfBtn">${I.download} Save as PDF / Print</button>
+  <button class="btn" id="shareBtn">${I.share} Send to athlete</button>
+  <button class="btn ghost" id="pdfBtn" style="margin-top:10px">${I.download} Save as PDF / Print</button>
   <div class="actions">
-    <button class="btn ghost" id="backBtn">${I.back} Roster</button>
     <button class="btn ghost" id="copyBtn">${I.doc} Copy</button>
+    <button class="btn ghost" id="regenBtn">${I.regen} New plan</button>
   </div>
   <div class="actions">
+    <button class="btn ghost" id="backBtn">${I.back} Roster</button>
     <button class="btn ghost" id="editBtn">${I.edit} Edit profile</button>
-    <button class="btn ghost" id="regenBtn">${I.regen} New plan</button>
   </div>`;
 
+  byId('shareBtn').onclick=()=>sharePlan(d);
   byId('pdfBtn').onclick=()=>window.print();
   byId('backBtn').onclick=renderHome;
   byId('editBtn').onclick=()=>{ renderForm(); window.scrollTo({top:0,behavior:'smooth'}); };
@@ -467,7 +479,7 @@ function renderPlan(d){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function copyPlan(d){
+function planText(d){
   const t=d.targets,pl=d.plan,a=d.athlete;
   let s=`QUICK6 FUELHOUSE — ${(a.name||'Athlete').toUpperCase()}\n${a.positionLabel} · ${t.goalLabel} · ${t.weightLb} lb\n`;
   if(pl.headline) s+=`\n${pl.headline}\n`;
@@ -480,10 +492,17 @@ function copyPlan(d){
   if(pl.recovery) s+=`\nRECOVERY\n${pl.recovery}\n`;
   if(pl.perfNotes) s+=`\nPERFORMANCE\n${pl.perfNotes}\n`;
   s+=`\nTRAINING — ${(pl.training&&pl.training.focus)||''}\n`; ((pl.training&&pl.training.week)||[]).forEach(w=>s+=`• ${w.day}: ${w.session}\n`);
+  if((pl.moves||[]).length){ s+=`\nHOW-TO DEMOS (tap to watch)\n`; pl.moves.forEach(m=>s+=`• ${m}: https://www.youtube.com/results?search_query=${encodeURIComponent('how to do '+m)}\n`); }
   if((pl.supplements||[]).length){ s+=`\nSUPPLEMENTS (optional, food first)\n`; pl.supplements.forEach(x=>s+=`• ${x.name} — ${x.why}\n`); }
   if((pl.watchFor||[]).length){ s+=`\nCOACH — WATCH FOR\n`; pl.watchFor.forEach(x=>s+=`• ${x}\n`); }
-  s+=`\nNot medical advice — coaching guidance a trainer reviews.`;
-  navigator.clipboard.writeText(s).then(()=>{ const b=byId('copyBtn'); b.classList.add('copied'); b.innerHTML=`${I.check} Copied`; setTimeout(()=>{ b.classList.remove('copied'); b.innerHTML=`${I.doc} Copy plan`; },1600); }).catch(()=>{});
+  s+=`\nNot medical advice — coaching guidance a trainer reviews.\nPowered by XPI Solutions`;
+  return s;
+}
+function copyPlan(d){ navigator.clipboard.writeText(planText(d)).then(()=>{ const b=byId('copyBtn'); if(!b) return; const o=b.innerHTML; b.classList.add('copied'); b.innerHTML=`${I.check} Copied`; setTimeout(()=>{ b.classList.remove('copied'); b.innerHTML=o; },1600); }).catch(()=>{}); }
+async function sharePlan(d){
+  var text=planText(d), title='Quick6 FuelHouse — '+(d.athlete.name||'Athlete');
+  if(navigator.share){ try{ await navigator.share({title:title, text:text}); }catch(_){ } return; }
+  try{ await navigator.clipboard.writeText(text); alert('Plan copied — paste it into a text or email to your athlete. (Native share isn’t available on this device.)'); }catch(_){ alert('Copy not available on this device.'); }
 }
 
 // ---------- intro / splash (speed streaks) ----------
@@ -492,25 +511,17 @@ function copyPlan(d){
   var intro=byId('intro'); if(!intro) return;
 
   // sports icons racing across
-  var SP={
-    football:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21C3 12 12 3 21 3c0 9-9 18-18 18z"/><path d="M8.5 15.5l7-7M10 14l1 1M13 11l1 1"/></svg>',
-    run:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="14" cy="5" r="2"/><path d="M12 21l2-5-3-3 1-5 4 3 3 1M6 22l3-5"/></svg>',
-    watch:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6M18.5 5.5 20 4"/></svg>',
-    dumbbell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 8v8M4 6v12M17.5 8v8M20 6v12M6.5 12h11"/></svg>',
-    bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
-    trophy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/></svg>',
-    flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>'
-  };
-  var keys=Object.keys(SP), iwrap=byId('introIcons');
+  var SP=['fa-football','fa-basketball','fa-person-running','fa-baseball','fa-volleyball','fa-futbol','fa-stopwatch','fa-trophy','fa-medal','fa-dumbbell','fa-whistle'];
+  var iwrap=byId('introIcons');
   if(iwrap && !reduce){
-    for(var n=0;n<11;n++){
+    for(var n=0;n<12;n++){
       var el=document.createElement('div'); el.className='ic-fly'+(Math.random()<.5?' w':'');
-      var sz=26+Math.random()*40;
-      el.style.top=(Math.random()*88)+'%'; el.style.width=el.style.height=sz+'px';
-      el.style.opacity=(.10+Math.random()*.20).toFixed(2);
+      var sz=24+Math.random()*36;
+      el.style.top=(Math.random()*88)+'%'; el.style.fontSize=sz.toFixed(0)+'px';
+      el.style.opacity=(.12+Math.random()*.22).toFixed(2);
       el.style.animationDuration=(4.5+Math.random()*5).toFixed(1)+'s';
       el.style.animationDelay=(-Math.random()*9).toFixed(1)+'s';
-      el.innerHTML=SP[keys[Math.floor(Math.random()*keys.length)]];
+      el.innerHTML='<i class="fa-solid '+SP[Math.floor(Math.random()*SP.length)]+'"></i>';
       iwrap.appendChild(el);
     }
   }
