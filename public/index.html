@@ -174,7 +174,7 @@ textarea{resize:vertical;min-height:60px}
 <body>
 
 <header>
-  <div class="brand">
+  <div class="brand" id="homeLink" title="Home" style="cursor:pointer">
     <div class="q6">QUICK<span class="six">6</span><span class="sub">FUELHOUSE</span></div>
   </div>
   <div class="hos">House of Speed</div>
@@ -441,6 +441,7 @@ function copyPlan(d){
 }
 
 // boot
+const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
 fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; renderHome(); }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
 </script>
 </body>
