@@ -142,6 +142,8 @@ textarea{resize:vertical;min-height:60px}
 .movechip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--text);text-decoration:none;transition:border-color .12s,color .12s}
 .movechip::before{content:"▶";color:var(--accent);font-size:8px}
 .movechip:hover{border-color:var(--accent);color:var(--accent)}
+.movechip.keith{border-color:color-mix(in srgb,var(--accent) 50%,transparent)}
+.movechip .kb{font-size:8px;font-weight:700;letter-spacing:.03em;color:#170a06;background:var(--accent);border-radius:5px;padding:2px 5px;margin-left:3px}
 .supp{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:8px 0;border-top:1px solid var(--line-soft)}
 .supp:first-child{border-top:none}
 .supp b{color:var(--text);font-weight:600}.supp span{color:var(--muted)}
@@ -247,6 +249,8 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const view=byId('view');
 let META={sports:{football:[],track:[]},activity:[],goals:[]};
 const OB={ sport:'football', sex:'male', diningHall:true };
+let DEMOS={};
+function demoUrl(m){ var raw=String(m||''); var k=raw.toLowerCase().trim().replace(/\s+/g,' '); var v=DEMOS[k]||DEMOS[k.replace(/s$/,'')]; if(v&&String(v).trim()) return {url:v,keith:true}; return {url:'https://www.youtube.com/results?search_query='+encodeURIComponent('how to do '+raw+' proper form'),keith:false}; }
 
 const I={
   bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>',
@@ -452,7 +456,7 @@ function renderPlan(d){
     ${pl.recovery?`<div class="sec"><div class="sec-h">${I.bed} Recovery</div><div class="block">${esc(pl.recovery)}</div></div>`:''}
     ${(mtiles||pl.perfNotes)?`<div class="sec"><div class="sec-h">${I.run} Performance testing</div>${mtiles?`<div class="mtiles">${mtiles}</div>`:''}${pl.perfNotes?`<div class="block" style="margin-top:${mtiles?'10px':'0'}">${esc(pl.perfNotes)}</div>`:''}</div>`:''}
     <div class="sec"><div class="sec-h">${I.run} Training — ${esc(pl.training&&pl.training.focus||d.profile.focus)}</div>${tdays||'<div class="block">No training returned.</div>'}</div>
-    ${(pl.moves&&pl.moves.length)?`<div class="sec"><div class="sec-h">${I.play} How-to demos <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">&mdash; tap a move to watch</span></div><div class="moves">${pl.moves.map(m=>`<a class="movechip" href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to do '+m+' proper form')}" target="_blank" rel="noopener">${esc(m)}</a>`).join('')}</div></div>`:''}
+    ${(pl.moves&&pl.moves.length)?`<div class="sec"><div class="sec-h">${I.play} How-to demos <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">&mdash; tap a move to watch</span></div><div class="moves">${pl.moves.map(m=>{const dm=demoUrl(m);return `<a class="movechip${dm.keith?' keith':''}" href="${dm.url}" target="_blank" rel="noopener">${esc(m)}${dm.keith?'<span class="kb">Q6</span>':''}</a>`;}).join('')}</div></div>`:''}
     ${supps?`<div class="sec"><div class="sec-h">${I.pill} Supplements <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">— food first, all optional</span></div><div class="card" style="margin-top:0;box-shadow:none;padding:4px 14px">${supps}</div></div>`:''}
     ${watch?`<div class="sec"><div class="watch"><div class="wh">${I.flag} Coach — watch for</div><ul>${watch}</ul></div></div>`:''}
 
@@ -492,7 +496,7 @@ function planText(d){
   if(pl.recovery) s+=`\nRECOVERY\n${pl.recovery}\n`;
   if(pl.perfNotes) s+=`\nPERFORMANCE\n${pl.perfNotes}\n`;
   s+=`\nTRAINING — ${(pl.training&&pl.training.focus)||''}\n`; ((pl.training&&pl.training.week)||[]).forEach(w=>s+=`• ${w.day}: ${w.session}\n`);
-  if((pl.moves||[]).length){ s+=`\nHOW-TO DEMOS (tap to watch)\n`; pl.moves.forEach(m=>s+=`• ${m}: https://www.youtube.com/results?search_query=${encodeURIComponent('how to do '+m)}\n`); }
+  if((pl.moves||[]).length){ s+=`\nHOW-TO DEMOS (tap to watch)\n`; pl.moves.forEach(m=>s+=`• ${m}: ${demoUrl(m).url}\n`); }
   if((pl.supplements||[]).length){ s+=`\nSUPPLEMENTS (optional, food first)\n`; pl.supplements.forEach(x=>s+=`• ${x.name} — ${x.why}\n`); }
   if((pl.watchFor||[]).length){ s+=`\nCOACH — WATCH FOR\n`; pl.watchFor.forEach(x=>s+=`• ${x}\n`); }
   s+=`\nNot medical advice — coaching guidance a trainer reviews.\nPowered by XPI Solutions`;
@@ -550,6 +554,7 @@ async function sharePlan(d){
 
 // boot
 const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
+fetch('/demos.json').then(r=>r.json()).then(m=>{ DEMOS=m||{}; }).catch(()=>{ DEMOS={}; });
 fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; renderHome(); }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
 </script>
 </body>
