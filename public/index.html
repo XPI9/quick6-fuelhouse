@@ -243,6 +243,7 @@ textarea{resize:vertical;min-height:60px}
     <div class="q6">QUICK<span class="six">6</span><span class="sub">FUELHOUSE</span></div>
   </div>
   <div class="hos">House of Speed</div>
+  <button id="coachChip" class="coachchip" hidden></button>
 </header>
 
 <div class="wrap">
@@ -277,6 +278,18 @@ textarea{resize:vertical;min-height:60px}
 .progbox{display:flex;gap:11px;align-items:flex-start;margin:14px 0;padding:13px 15px;border-radius:13px;background:color-mix(in srgb, var(--accent) 12%, #14161c);border:1px solid color-mix(in srgb, var(--accent) 40%, transparent)}
 .progbox svg{width:20px;height:20px;flex:0 0 auto;color:var(--accent);margin-top:1px}
 .progbox b{color:#fff}
+.rbadge img,.ath-badge img,.ava img,.coachchip img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.photorow{display:flex;gap:12px;align-items:flex-end}
+.avac{position:relative;flex:0 0 auto;cursor:pointer;display:inline-block}
+.ava{width:58px;height:58px;border-radius:50%;background:var(--accent);color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden}
+.avacam{position:absolute;right:-2px;bottom:-2px;width:23px;height:23px;border-radius:50%;background:#14161c;border:1px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center}
+.avacam svg{width:12px;height:12px;color:#fff}
+.coachchip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:4px 12px 4px 4px;cursor:pointer;color:#e7e9ee;font-weight:700;font-size:13px}
+.coachchip .cc-ava{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12px;overflow:hidden;flex:0 0 auto}
+.coachcredit{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);font-size:13.5px;color:#c7ccd6}
+.coachcredit img,.coachcredit .cc-i{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:0 0 auto}
+.coachcredit .cc-i{background:var(--accent);color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px}
+.coachcredit b{color:#fff}
 .testhist{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px}
 .th-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint,#889);margin-bottom:6px}
 .th-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
@@ -325,6 +338,28 @@ textarea{resize:vertical;min-height:60px}
   </div>
 </div>
 
+<div id="profGate" hidden aria-modal="true" role="dialog">
+  <div class="lead-card">
+    <div class="lead-mark">XPI<span>&middot;</span> ATHLETE FUEL</div>
+    <h2>Your coach profile</h2>
+    <p>Your photo &amp; name show on your athletes' plans.</p>
+    <div class="lead-err" id="profErr"></div>
+    <div class="photorow" style="margin:6px 0 12px">
+      <label class="avac" for="cpPhotoFile" title="Add photo">
+        <span class="ava" id="cpAva"></span>
+        <span class="avacam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+      </label>
+      <input id="cpPhotoFile" type="file" accept="image/*" hidden>
+      <div style="flex:1;color:#889;font-size:12.5px;align-self:center">Tap the circle to add or change your photo.</div>
+    </div>
+    <label>Your name<input id="cpName" autocomplete="name" placeholder="Coach name"></label>
+    <label>School / program<input id="cpSchool" placeholder="e.g. Central High Football"></label>
+    <button id="cpSave" class="lead-go">Save profile</button>
+    <button id="cpLogout" class="lead-go" style="background:transparent;color:#aab;border:1px solid rgba(255,255,255,.12);margin-top:8px">Log out</button>
+    <button id="cpClose" class="lead-go" style="background:transparent;color:#889;margin-top:2px">Close</button>
+  </div>
+</div>
+
 <div id="actGate" hidden aria-modal="true" role="dialog">
   <div class="lead-card">
     <div class="lead-mark">XPI<span>&middot;</span> ATHLETE FUEL</div>
@@ -365,6 +400,7 @@ const I={
   download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
   play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>',
   share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
+  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
 };
 
 /* ---------- roster (on the coach's account when signed in; cached on device) ---------- */
@@ -404,8 +440,9 @@ function renderHome(){
 function rosterRow(a){
   const t=a.plan&&a.plan.targets;
   const sub=[a.plan?a.plan.athlete.positionLabel:'', t?t.goalLabel:''].filter(Boolean).join(' · ');
+  const photo=a.form&&a.form.photo;
   return `<div class="rrow" data-open="${a.id}">
-    <div class="rbadge">${esc(initials(a.name))}</div>
+    <div class="rbadge">${photo?`<img src="${esc(photo)}" alt="">`:esc(initials(a.name))}</div>
     <div class="rinfo"><div class="rname">${esc(a.name||'Athlete')}</div><div class="rsub">${esc(sub||(a.form&&a.form.sport==='track'?'Track & Field':'Football'))}</div></div>
     ${t?`<div class="rcal">${esc(t.calories)}<span>kcal</span></div>`:''}
     <button class="rdel" data-del="${a.id}" aria-label="Remove">✕</button>
@@ -426,7 +463,14 @@ function renderForm(){
   view.innerHTML=`${backNav}
   <div class="card">
     <div class="card-h">${I.bolt} Athlete</div>
-    <label class="f"><div class="lab">Athlete name</div><input id="fName" placeholder="e.g. Marcus Johnson" value="${esc(OB.name||'')}"></label>
+    <div class="photorow">
+      <label class="avac" for="fPhotoFile" title="Add photo">
+        <span class="ava" id="avaImg">${OB.photo?`<img src="${esc(OB.photo)}" alt="">`:esc(initials(OB.name))}</span>
+        <span class="avacam">${I.camera}</span>
+      </label>
+      <input id="fPhotoFile" type="file" accept="image/*" hidden>
+      <label class="f" style="flex:1"><div class="lab">Athlete name</div><input id="fName" placeholder="e.g. Marcus Johnson" value="${esc(OB.name||'')}"></label>
+    </div>
 
     <div class="field"><div class="lab">Sport</div>
       <div class="seg" id="sportSeg">
@@ -490,8 +534,18 @@ function renderForm(){
   byId('sexSeg').querySelectorAll('[data-sex]').forEach(b=>b.onclick=()=>{ OB.sex=b.dataset.sex; captureForm(); renderForm(); });
   byId('dhToggle').onclick=()=>{ OB.diningHall=!OB.diningHall; captureForm(); renderForm(); };
   byId('goBtn').onclick=submitPlan;
+  const pf=byId('fPhotoFile'); if(pf) pf.onchange=(e)=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; fileToAvatar(f,(url)=>{ if(!url){ alert('Could not read that image.'); return; } OB.photo=url; const ai=byId('avaImg'); if(ai) ai.innerHTML='<img src="'+url+'" alt="">'; }); };
   const inj=byId('fInjury'); if(inj) inj.onchange=()=>{ const w=byId('injDescWrap'); if(w) w.hidden=(inj.value==='healthy'); };
   if(byId('backBtn')) byId('backBtn').onclick=renderHome;
+}
+
+// Shrink any picked photo to a small square data URL (kept tiny so it syncs with the account).
+function fileToAvatar(file, cb){
+  try{
+    const r=new FileReader();
+    r.onload=()=>{ const img=new Image(); img.onload=()=>{ const S=256, c=document.createElement('canvas'); c.width=S; c.height=S; const ctx=c.getContext('2d'); const min=Math.min(img.width,img.height), sx=(img.width-min)/2, sy=(img.height-min)/2; ctx.drawImage(img,sx,sy,min,min,0,0,S,S); try{ cb(c.toDataURL('image/jpeg',0.72)); }catch(_){ cb(null); } }; img.onerror=()=>cb(null); img.src=r.result; };
+    r.onerror=()=>cb(null); r.readAsDataURL(file);
+  }catch(e){ cb(null); }
 }
 
 function captureForm(){
@@ -535,7 +589,28 @@ function needCoach(){ try{ return !!(window.__BRAND&&window.__BRAND.leadCapture)
 function openLeadGate(){ var g=byId('leadGate'); if(!g) return; g.hidden=false; setGateMode('signup'); var n=byId('lcName'); if(n) setTimeout(function(){ try{n.focus();}catch(e){} },60); }
 function closeLeadGate(){ var g=byId('leadGate'); if(g) g.hidden=true; }
 function setGateMode(m){ var su=m!=='login'; var ps=byId('paneSignup'),pl=byId('paneLogin'); if(ps)ps.hidden=!su; if(pl)pl.hidden=su; byId('tabSignup').classList.toggle('on',su); byId('tabLogin').classList.toggle('on',!su); var e=byId('leadErr'),le=byId('loginErr'); if(e)e.textContent=''; if(le)le.textContent=''; }
-async function afterAuth(){ try{ await adoptLocalRoster(); }catch(e){} renderHome(); }
+async function afterAuth(){ renderCoachChip(); try{ await adoptLocalRoster(); }catch(e){} renderHome(); }
+
+/* ---------- coach profile ---------- */
+function renderCoachChip(){ var c=byId('coachChip'); if(!c) return; var s=session(); if(!s||!s.coach){ c.hidden=true; return; } var co=s.coach; var first=(co.name||'Coach').split(/\s+/)[0]; c.hidden=false; c.innerHTML='<span class="cc-ava">'+(co.photo?'<img src="'+esc(co.photo)+'" alt="">':esc(initials(co.name)))+'</span><span>'+esc(first)+'</span>'; }
+var _cpPhoto=null;
+function openProfile(){ var s=session(); if(!s||!s.coach) return; var g=byId('profGate'); if(!g) return; _cpPhoto=null; byId('cpName').value=s.coach.name||''; byId('cpSchool').value=s.coach.school||''; var av=byId('cpAva'); if(av) av.innerHTML=s.coach.photo?'<img src="'+esc(s.coach.photo)+'" alt="">':esc(initials(s.coach.name)); byId('profErr').textContent=''; g.hidden=false; }
+function closeProfile(){ var g=byId('profGate'); if(g) g.hidden=true; }
+async function saveProfile(){
+  var s=session(); if(!s) return;
+  var name=(byId('cpName').value||'').trim(), school=(byId('cpSchool').value||'').trim();
+  var err=byId('profErr'); err.textContent='';
+  if(name.length<2){ err.textContent='Enter your name.'; return; }
+  var btn=byId('cpSave'); var old=btn.innerHTML; btn.disabled=true; btn.textContent='Saving…';
+  var body={name:name, school:school}; if(_cpPhoto!==null) body.photo=_cpPhoto;
+  try{
+    var r=await fetch('/api/profile',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
+    var d=await r.json();
+    if(d.error){ err.textContent=d.message||'Could not save.'; btn.disabled=false; btn.innerHTML=old; return; }
+    s.coach=d.coach; setSession(s); _cpPhoto=null; btn.disabled=false; btn.innerHTML=old; closeProfile(); renderCoachChip();
+  }catch(e){ err.textContent='Network error — try again.'; btn.disabled=false; btn.innerHTML=old; }
+}
+function logout(){ try{ localStorage.removeItem('af_session'); localStorage.removeItem('q6_roster'); }catch(e){} location.reload(); }
 
 async function submitSignup(){
   var name=(byId('lcName').value||'').trim(), school=(byId('lcSchool').value||'').trim(), email=(byId('lcEmail').value||'').trim(), phone=(byId('lcPhone').value||'').trim(), pin=(byId('lcPin').value||'').trim();
@@ -628,7 +703,7 @@ function renderPlan(d){
   view.innerHTML=`
   <div class="card" id="planCard">
     <div class="ath-head">
-      <div class="ath-badge">${esc(initials(a.name))}</div>
+      <div class="ath-badge">${OB.photo?`<img src="${esc(OB.photo)}" alt="">`:esc(initials(a.name))}</div>
       <div>
         <div class="ath-name">${esc(a.name||'Athlete')}</div>
         <div class="ath-meta">${esc(a.positionLabel)} · ${esc(t.goalLabel)} · ${esc(t.weightLb)} lb${a.diningHall?' · dining-hall':''}${OB.equipment==='home'?' · bodyweight':OB.equipment==='basic'?' · DB/bands':''}</div>
@@ -659,6 +734,7 @@ function renderPlan(d){
     ${supps?`<div class="sec"><div class="sec-h">${I.pill} Supplements <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">— food first, all optional</span></div><div class="card" style="margin-top:0;box-shadow:none;padding:4px 14px">${supps}</div></div>`:''}
     ${watch?`<div class="sec"><div class="watch"><div class="wh">${I.flag} Coach — watch for</div><ul>${watch}</ul></div></div>`:''}
 
+    ${(function(){var s=session();var co=s&&s.coach;if(!co||!co.name)return '';return `<div class="coachcredit">${co.photo?`<img src="${esc(co.photo)}" alt="">`:`<span class="cc-i">${esc(initials(co.name))}</span>`}<div><b>Coach ${esc(co.name)}</b>${co.school?` &middot; ${esc(co.school)}`:''}</div></div>`;})()}
     <div class="disclaimer disclaimer-hide">Quick6 FuelHouse gives coaching guidance for healthy athletes — it is <b>not medical or dietary treatment</b>. A trainer should review every plan, and any athlete with a medical condition, injury, or eating concern should see a physician or registered dietitian.</div>
   </div>
 
@@ -739,6 +815,12 @@ const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
   var tl=byId('tabLogin'); if(tl) tl.addEventListener('click', function(){ setGateMode('login'); });
   var ab=byId('acGo'); if(ab) ab.addEventListener('click', submitActivate);
   var ac=byId('acCode'); if(ac) ac.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitActivate(); } });
+  var cc=byId('coachChip'); if(cc) cc.addEventListener('click', openProfile);
+  var cs=byId('cpSave'); if(cs) cs.addEventListener('click', saveProfile);
+  var clo=byId('cpLogout'); if(clo) clo.addEventListener('click', logout);
+  var ccl=byId('cpClose'); if(ccl) ccl.addEventListener('click', closeProfile);
+  var cpf=byId('cpPhotoFile'); if(cpf) cpf.addEventListener('change', function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; fileToAvatar(f,function(url){ if(!url){ alert('Could not read that image.'); return; } _cpPhoto=url; var av=byId('cpAva'); if(av) av.innerHTML='<img src="'+url+'" alt="">'; }); });
+  renderCoachChip();
   var t=(window.__BRAND&&window.__BRAND.trial); var tn=byId('lcTrial'); if(t&&tn) tn.innerHTML='Free <b>'+t.days+'-day</b> trial &middot; no card needed'; })();
 fetch((window.__BRAND&&window.__BRAND.demos)||'/demos.json').then(r=>r.json()).then(m=>{ DEMOS=m||{}; }).catch(()=>{ DEMOS={}; });
 fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; if(authToken()){ adoptLocalRoster().then(renderHome); } else { renderHome(); } }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });

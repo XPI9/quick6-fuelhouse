@@ -57,7 +57,7 @@ function saveUsers() {
 // --- lightweight auth: email + PIN (hashed), bearer token per device ---
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString('hex');
 const newToken = () => crypto.randomBytes(24).toString('base64url');
-const publicUser = (u) => u && ({ email: u.email, name: u.name || '', school: u.school || '', phone: u.phone || '', activated: !!u.activated, plans: u.plans || 0 });
+const publicUser = (u) => u && ({ email: u.email, name: u.name || '', school: u.school || '', phone: u.phone || '', photo: u.photo || '', activated: !!u.activated, plans: u.plans || 0 });
 function addToken(u) { const t = newToken(); u.tokens = (u.tokens || []); u.tokens.push(t); if (u.tokens.length > 10) u.tokens = u.tokens.slice(-10); return t; }
 function tokenOf(req) {
   const h = String(req.headers['authorization'] || '');
@@ -120,6 +120,17 @@ app.post('/api/login', (req, res) => {
 // GET /api/me — who am I (used to restore a session on load).
 app.get('/api/me', (req, res) => {
   const u = requireUser(req, res); if (!u) return;
+  res.json({ ok: true, coach: publicUser(u) });
+});
+
+// POST /api/profile — update the coach's own name / school / photo.
+app.post('/api/profile', (req, res) => {
+  const u = requireUser(req, res); if (!u) return;
+  const b = req.body || {};
+  if (typeof b.name === 'string' && b.name.trim().length >= 2) u.name = b.name.trim().slice(0, 120);
+  if (typeof b.school === 'string') u.school = b.school.slice(0, 160);
+  if (typeof b.photo === 'string') { if (b.photo === '') u.photo = ''; else if (/^data:image\//.test(b.photo) && b.photo.length < 300000) u.photo = b.photo; }
+  saveUsers();
   res.json({ ok: true, coach: publicUser(u) });
 });
 
