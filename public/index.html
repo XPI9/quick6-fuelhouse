@@ -260,7 +260,7 @@ textarea{resize:vertical;min-height:60px}
 <style>
 #leadGate{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(6,7,9,.82);backdrop-filter:blur(6px)}
 #leadGate[hidden]{display:none}
-.lead-card{width:100%;max-width:430px;background:#14161c;border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:26px 22px 20px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+.lead-card{width:100%;max-width:430px;max-height:92vh;overflow-y:auto;background:#14161c;border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:26px 22px 20px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
 .lead-mark{font-weight:800;letter-spacing:.14em;font-size:13px;color:#fff;opacity:.85}
 .lead-mark span{color:var(--accent)}
 .lead-card h2{margin:12px 0 4px;font-size:22px;color:#fff;font-weight:800}
@@ -274,6 +274,9 @@ textarea{resize:vertical;min-height:60px}
 .lead-err:not(:empty){min-height:18px;margin-bottom:6px}
 .lead-fine{margin-top:14px;text-align:center;color:#889;font-size:11.5px}
 .lead-fine b{color:#aab}
+.lead-tabs{display:flex;gap:6px;margin:16px 0 4px;background:#0e1014;border:1px solid rgba(255,255,255,.09);border-radius:11px;padding:4px}
+.lt-tab{flex:1;padding:9px;border:0;border-radius:8px;background:transparent;color:#aab;font-weight:700;font-size:13.5px;cursor:pointer}
+.lt-tab.on{background:var(--accent);color:#111}
 .buildbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:200;background:rgba(255,255,255,.07)}
 .buildbar>span{display:block;height:100%;width:0;background:var(--accent);box-shadow:0 0 12px var(--accent);border-radius:0 3px 3px 0;transition:width .35s linear}
 </style>
@@ -283,15 +286,33 @@ textarea{resize:vertical;min-height:60px}
 <div id="leadGate" hidden aria-modal="true" role="dialog">
   <div class="lead-card">
     <div class="lead-mark">XPI<span>&middot;</span> ATHLETE FUEL</div>
-    <h2>Coach, start here</h2>
-    <p>Quick intro so your athletes' plans stay tied to you. Takes 10 seconds.</p>
-    <div class="lead-err" id="leadErr"></div>
-    <label>Your name<input id="lcName" autocomplete="name" placeholder="Coach name"></label>
-    <label>School / program<input id="lcSchool" placeholder="e.g. Central High Football"></label>
-    <label>Email<input id="lcEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@school.org"></label>
-    <label>Cell &nbsp;<span style="color:#889;font-weight:500">(optional)</span><input id="lcPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 555-5555"></label>
-    <button id="lcGo" class="lead-go">Start building plans &rarr;</button>
-    <div class="lead-fine" id="lcTrial"></div>
+    <div class="lead-tabs">
+      <button type="button" id="tabSignup" class="lt-tab on">New here</button>
+      <button type="button" id="tabLogin" class="lt-tab">Log in</button>
+    </div>
+
+    <div id="paneSignup">
+      <h2>Coach, start here</h2>
+      <p>Set up your account — your roster saves to you, on any device.</p>
+      <div class="lead-err" id="leadErr"></div>
+      <label>Your name<input id="lcName" autocomplete="name" placeholder="Coach name"></label>
+      <label>School / program<input id="lcSchool" placeholder="e.g. Central High Football"></label>
+      <label>Email<input id="lcEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@school.org"></label>
+      <label>Cell &nbsp;<span style="color:#889;font-weight:500">(optional)</span><input id="lcPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 555-5555"></label>
+      <label>Create a PIN &nbsp;<span style="color:#889;font-weight:500">(4–8 digits — you'll use this to log back in)</span><input id="lcPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="••••"></label>
+      <button id="lcGo" class="lead-go">Create account &rarr;</button>
+      <div class="lead-fine" id="lcTrial"></div>
+    </div>
+
+    <div id="paneLogin" hidden>
+      <h2>Welcome back</h2>
+      <p>Log in to pull up your roster.</p>
+      <div class="lead-err" id="loginErr"></div>
+      <label>Email<input id="liEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@school.org"></label>
+      <label>PIN<input id="liPin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" placeholder="••••"></label>
+      <button id="liGo" class="lead-go">Log in &rarr;</button>
+    </div>
+
     <div class="lead-fine">Powered by <b>XPI&nbsp;Solutions</b></div>
   </div>
 </div>
@@ -338,11 +359,13 @@ const I={
   share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
 };
 
-/* ---------- roster (saved on this device) ---------- */
+/* ---------- roster (on the coach's account when signed in; cached on device) ---------- */
 function loadRoster(){ try{ return JSON.parse(localStorage.getItem('q6_roster')||'[]'); }catch(_){ return []; } }
 function saveRoster(r){ try{ localStorage.setItem('q6_roster',JSON.stringify(r)); }catch(_){} }
-function upsert(rec){ const r=loadRoster(); const i=r.findIndex(x=>x.id===rec.id); if(i>=0) r[i]=rec; else r.unshift(rec); saveRoster(r); }
-function removeAthlete(id){ saveRoster(loadRoster().filter(x=>x.id!==id)); }
+function upsert(rec){ const r=loadRoster(); const i=r.findIndex(x=>x.id===rec.id); if(i>=0) r[i]=rec; else r.unshift(rec); saveRoster(r); pushAthlete(rec); }
+function removeAthlete(id){ saveRoster(loadRoster().filter(x=>x.id!==id)); if(authToken()) fetch('/api/athlete/delete',{method:'POST',headers:authHeaders(),body:JSON.stringify({id:id})}).catch(function(){}); }
+function pushAthlete(rec){ if(!authToken()) return; fetch('/api/athlete',{method:'POST',headers:authHeaders(),body:JSON.stringify({athlete:rec})}).catch(function(){}); }
+async function syncRoster(){ if(!authToken()) return; try{ var r=await fetch('/api/roster',{headers:authHeaders()}); if(r.status===401){ try{localStorage.removeItem('af_session');}catch(e){} return; } var d=await r.json(); if(d&&Array.isArray(d.roster)) saveRoster(d.roster); }catch(e){} }
 function uid(){ return 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 
 function renderHome(){
@@ -464,10 +487,9 @@ function captureForm(){
 
 function validOB(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft; if(!(age>=10&&age<=60)) return 'Enter a valid age.'; if(!(wt>=60&&wt<=520)) return 'Enter a valid weight in pounds.'; if(!(ft>=4&&ft<=7)) return 'Enter a valid height (feet).'; return ''; }
 function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', equipment:OB.equipment||'gym', injury:OB.injury||'healthy', injuryDesc:OB.injuryDesc||'', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{} }; }
-function coachRec(){ try{ return JSON.parse(localStorage.getItem('af_coach')||'null'); }catch(e){ return null; } }
 async function requestPlan(){
-  const body=obToBody(); body.coach=coachRec();
-  const r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const body=obToBody();
+  const r=await fetch('/api/plan',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
   const d=await r.json();
   if(r.status===402 && d.error==='trial_over'){ var e=new Error(d.message||'Trial over'); e.trialOver=true; throw e; }
   if(r.status===401 && d.error==='need_coach'){ var e2=new Error('signin'); e2.needCoach=true; throw e2; }
@@ -476,21 +498,44 @@ async function requestPlan(){
   upsert({ id:OB.id, name:d.athlete.name||OB.name||'Athlete', form:{...OB}, plan:d, savedAt:Date.now() });
   return d;
 }
-function needCoach(){ try{ return !!(window.__BRAND&&window.__BRAND.leadCapture) && !localStorage.getItem('af_coach'); }catch(e){ return false; } }
-function openLeadGate(){ var g=byId('leadGate'); if(!g) return; g.hidden=false; var n=byId('lcName'); if(n) setTimeout(function(){ try{n.focus();}catch(e){} },60); }
+/* ---------- auth / session ---------- */
+function session(){ try{ return JSON.parse(localStorage.getItem('af_session')||'null'); }catch(e){ return null; } }
+function setSession(s){ try{ localStorage.setItem('af_session',JSON.stringify(s)); }catch(e){} }
+function authToken(){ var s=session(); return (s&&s.token)||''; }
+function authHeaders(){ var h={'Content-Type':'application/json'}; var t=authToken(); if(t) h['Authorization']='Bearer '+t; return h; }
+function needCoach(){ try{ return !!(window.__BRAND&&window.__BRAND.leadCapture) && !authToken(); }catch(e){ return false; } }
+
+function openLeadGate(){ var g=byId('leadGate'); if(!g) return; g.hidden=false; setGateMode('signup'); var n=byId('lcName'); if(n) setTimeout(function(){ try{n.focus();}catch(e){} },60); }
 function closeLeadGate(){ var g=byId('leadGate'); if(g) g.hidden=true; }
-async function submitLead(){
-  var name=(byId('lcName').value||'').trim(), school=(byId('lcSchool').value||'').trim(), email=(byId('lcEmail').value||'').trim(), phone=(byId('lcPhone').value||'').trim();
+function setGateMode(m){ var su=m!=='login'; var ps=byId('paneSignup'),pl=byId('paneLogin'); if(ps)ps.hidden=!su; if(pl)pl.hidden=su; byId('tabSignup').classList.toggle('on',su); byId('tabLogin').classList.toggle('on',!su); var e=byId('leadErr'),le=byId('loginErr'); if(e)e.textContent=''; if(le)le.textContent=''; }
+async function afterAuth(){ try{ await syncRoster(); }catch(e){} renderHome(); }
+
+async function submitSignup(){
+  var name=(byId('lcName').value||'').trim(), school=(byId('lcSchool').value||'').trim(), email=(byId('lcEmail').value||'').trim(), phone=(byId('lcPhone').value||'').trim(), pin=(byId('lcPin').value||'').trim();
   var err=byId('leadErr'); err.textContent='';
   if(name.length<2){ err.textContent='Enter your name.'; return; }
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.textContent='Enter a valid email.'; return; }
-  var btn=byId('lcGo'); var old=btn.innerHTML; btn.disabled=true; btn.textContent='Saving…';
-  var rec={ name:name, school:school, email:email, phone:phone, at:Date.now() };
-  try{ localStorage.setItem('af_coach', JSON.stringify(rec)); }catch(e){}
-  try{ await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ name:name, school:school, email:email, phone:phone, brand:(window.__BRAND&&window.__BRAND.short)||'' })}); }catch(e){}
-  btn.disabled=false; btn.innerHTML=old;
-  closeLeadGate();
-  submitPlan();
+  if(!/^\d{4,8}$/.test(pin)){ err.textContent='Pick a 4–8 digit PIN.'; return; }
+  var btn=byId('lcGo'); var old=btn.innerHTML; btn.disabled=true; btn.textContent='Creating…';
+  try{
+    var r=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,school:school,email:email,phone:phone,pin:pin})});
+    var d=await r.json();
+    if(d.error){ if(d.error==='exists'){ setGateMode('login'); var le=byId('liEmail'); if(le)le.value=email; byId('loginErr').textContent='You already have an account — enter your PIN.'; } else { err.textContent=d.message||'Could not create account.'; } btn.disabled=false; btn.innerHTML=old; return; }
+    setSession({token:d.token, coach:d.coach}); closeLeadGate(); btn.disabled=false; btn.innerHTML=old; afterAuth();
+  }catch(e){ err.textContent='Network error — try again.'; btn.disabled=false; btn.innerHTML=old; }
+}
+async function submitLogin(){
+  var email=(byId('liEmail').value||'').trim(), pin=(byId('liPin').value||'').trim();
+  var err=byId('loginErr'); err.textContent='';
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.textContent='Enter your email.'; return; }
+  if(!pin){ err.textContent='Enter your PIN.'; return; }
+  var btn=byId('liGo'); var old=btn.innerHTML; btn.disabled=true; btn.textContent='Logging in…';
+  try{
+    var r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,pin:pin})});
+    var d=await r.json();
+    if(d.error){ err.textContent=d.message||'Could not log in.'; btn.disabled=false; btn.innerHTML=old; return; }
+    setSession({token:d.token, coach:d.coach}); closeLeadGate(); btn.disabled=false; btn.innerHTML=old; afterAuth();
+  }catch(e){ err.textContent='Network error — try again.'; btn.disabled=false; btn.innerHTML=old; }
 }
 function openActivate(msg){ var g=byId('actGate'); if(!g) return; var m=byId('actMsg'); if(m&&msg) m.textContent=msg+' Enter your activation code to unlock your whole roster, or reach out to activate your program.'; g.hidden=false; var c=byId('acCode'); if(c) setTimeout(function(){ try{c.focus();}catch(e){} },60); }
 function closeActivate(){ var g=byId('actGate'); if(g) g.hidden=true; }
@@ -499,7 +544,7 @@ async function submitActivate(){
   if(!code){ err.textContent='Enter your activation code.'; return; }
   var btn=byId('acGo'); var old=btn.innerHTML; btn.disabled=true; btn.textContent='Activating…';
   try{
-    var r=await fetch('/api/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ coach:coachRec(), code:code })});
+    var r=await fetch('/api/activate',{method:'POST',headers:authHeaders(),body:JSON.stringify({ code:code })});
     var d=await r.json();
     if(d.error){ err.textContent=d.message||'That code isn’t valid.'; btn.disabled=false; btn.innerHTML=old; return; }
     closeActivate(); submitPlan();
@@ -655,13 +700,17 @@ async function sharePlan(d){
 
 // boot
 const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
-(function(){ var b=byId('lcGo'); if(b) b.addEventListener('click', submitLead);
-  ['lcName','lcSchool','lcEmail','lcPhone'].forEach(function(id){ var el=byId(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitLead(); } }); });
+(function(){ var b=byId('lcGo'); if(b) b.addEventListener('click', submitSignup);
+  ['lcName','lcSchool','lcEmail','lcPhone','lcPin'].forEach(function(id){ var el=byId(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitSignup(); } }); });
+  var lb=byId('liGo'); if(lb) lb.addEventListener('click', submitLogin);
+  ['liEmail','liPin'].forEach(function(id){ var el=byId(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitLogin(); } }); });
+  var ts=byId('tabSignup'); if(ts) ts.addEventListener('click', function(){ setGateMode('signup'); });
+  var tl=byId('tabLogin'); if(tl) tl.addEventListener('click', function(){ setGateMode('login'); });
   var ab=byId('acGo'); if(ab) ab.addEventListener('click', submitActivate);
   var ac=byId('acCode'); if(ac) ac.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitActivate(); } });
   var t=(window.__BRAND&&window.__BRAND.trial); var tn=byId('lcTrial'); if(t&&tn) tn.innerHTML='Free <b>'+t.days+'-day</b> trial &middot; no card needed'; })();
 fetch((window.__BRAND&&window.__BRAND.demos)||'/demos.json').then(r=>r.json()).then(m=>{ DEMOS=m||{}; }).catch(()=>{ DEMOS={}; });
-fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; renderHome(); }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
+fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; if(authToken()){ syncRoster().then(renderHome); } else { renderHome(); } }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
 if('serviceWorker' in navigator){ addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
 </script>
 </body>
