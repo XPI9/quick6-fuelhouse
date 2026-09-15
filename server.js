@@ -9,6 +9,7 @@ import 'dotenv/config';
 import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { BRAND } from './lib/brand.js';
 import { sports, profileFor, METRICS, metricsFor, EQUIPMENT } from './lib/positions.js';
@@ -41,14 +42,110 @@ const TRIAL = BRAND.trial ? {
 const ACTIVATION_CODES = new Set((process.env.FUEL_ACTIVATION_CODES || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 const normEmail = (e) => String(e || '').trim().toLowerCase().slice(0, 160);
 
-const COACHES_FILE = path.join(__dirname, 'data', 'coaches.json');
-let COACHES = {};
-try { COACHES = JSON.parse(fs.readFileSync(COACHES_FILE, 'utf8')) || {}; } catch { COACHES = {}; }
+// Unified per-coach account store (auth + trial + roster), keyed by email.
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+let USERS = {};
+try { USERS = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')) || {}; } catch { USERS = {}; }
+// One-time migration from the older coaches.json (trial/activation only).
+try { const old = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'coaches.json'), 'utf8')); for (const [k, v] of Object.entries(old || {})) if (!USERS[k]) USERS[k] = v; } catch { /* none */ }
 let _saveT = null;
-function saveCoaches() {
+function saveUsers() {
   clearTimeout(_saveT);
-  _saveT = setTimeout(() => { try { fs.mkdirSync(path.dirname(COACHES_FILE), { recursive: true }); fs.writeFileSync(COACHES_FILE, JSON.stringify(COACHES)); } catch (e) { console.error('[coaches save]', e); } }, 200);
+  _saveT = setTimeout(() => { try { fs.mkdirSync(path.dirname(USERS_FILE), { recursive: true }); fs.writeFileSync(USERS_FILE, JSON.stringify(USERS)); } catch (e) { console.error('[users save]', e); } }, 200);
 }
+
+// --- lightweight auth: email + PIN (hashed), bearer token per device ---
+const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString('hex');
+const newToken = () => crypto.randomBytes(24).toString('base64url');
+const publicUser = (u) => u && ({ email: u.email, name: u.name || '', school: u.school || '', phone: u.phone || '', activated: !!u.activated, plans: u.plans || 0 });
+function addToken(u) { const t = newToken(); u.tokens = (u.tokens || []); u.tokens.push(t); if (u.tokens.length > 10) u.tokens = u.tokens.slice(-10); return t; }
+function tokenOf(req) {
+  const h = String(req.headers['authorization'] || '');
+  if (h.startsWith('Bearer ')) return h.slice(7).trim();
+  return (req.body && req.body.token) || '';
+}
+function userFromToken(tok) {
+  if (!tok) return null;
+  for (const u of Object.values(USERS)) { if (u.token === tok) return u; if (Array.isArray(u.tokens) && u.tokens.includes(tok)) return u; }
+  return null;
+}
+function requireUser(req, res) {
+  const u = userFromToken(tokenOf(req));
+  if (!u) { res.status(401).json({ error: 'auth', message: 'Please sign in again.' }); return null; }
+  return u;
+}
+
+// POST /api/signup — create an account (email + PIN). Also logs the lead.
+app.post('/api/signup', (req, res) => {
+  const b = req.body || {};
+  const email = normEmail(b.email);
+  const pin = String(b.pin || '').trim();
+  const name = (b.name || '').toString().slice(0, 120);
+  const school = (b.school || '').toString().slice(0, 160);
+  const phone = (b.phone || '').toString().slice(0, 40);
+  if (name.length < 2 || !emailOk(email)) return res.status(400).json({ error: 'bad_input', message: 'Enter your name and a valid email.' });
+  if (!/^\d{4,8}$/.test(pin)) return res.status(400).json({ error: 'bad_pin', message: 'Pick a 4–8 digit PIN.' });
+  const existing = USERS[email];
+  if (existing && existing.pinHash) return res.status(409).json({ error: 'exists', message: 'You already have an account — log in with your PIN.' });
+  const salt = crypto.randomBytes(12).toString('hex');
+  const u = existing || {};
+  Object.assign(u, {
+    email, name, school, phone,
+    pinSalt: salt, pinHash: hashPin(pin, salt),
+    firstSeen: u.firstSeen || Date.now(), createdAt: u.createdAt || Date.now(),
+    plans: u.plans || 0, activated: !!u.activated, roster: u.roster || [],
+  });
+  const token = addToken(u);
+  USERS[email] = u; saveUsers();
+  // keep the marketing lead log flowing
+  try { fs.mkdirSync(path.dirname(LEADS_FILE), { recursive: true }); fs.appendFileSync(LEADS_FILE, JSON.stringify({ ts: new Date().toISOString(), brand: BRAND.short, name, school, email, phone, via: 'signup' }) + '\n'); } catch {}
+  const fwd = process.env.LEAD_FORWARD_URL;
+  if (fwd && typeof fetch === 'function') fetch(fwd, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, school, email, phone, _subject: `New ${BRAND.short} signup — ${name}${school ? ' (' + school + ')' : ''}` }) }).catch(() => {});
+  console.log('[signup]', email, '|', name, '|', school);
+  res.json({ ok: true, token, coach: publicUser(u) });
+});
+
+// POST /api/login — returning coach (email + PIN) -> a fresh token.
+app.post('/api/login', (req, res) => {
+  const b = req.body || {};
+  const email = normEmail(b.email);
+  const pin = String(b.pin || '').trim();
+  const u = USERS[email];
+  if (!u || !u.pinHash) return res.status(404).json({ error: 'no_account', message: 'No account for that email — sign up first.' });
+  if (hashPin(pin, u.pinSalt) !== u.pinHash) return res.status(401).json({ error: 'bad_login', message: 'Wrong PIN. Try again.' });
+  const token = addToken(u); saveUsers();
+  res.json({ ok: true, token, coach: publicUser(u) });
+});
+
+// GET /api/me — who am I (used to restore a session on load).
+app.get('/api/me', (req, res) => {
+  const u = requireUser(req, res); if (!u) return;
+  res.json({ ok: true, coach: publicUser(u) });
+});
+
+// --- cloud roster: each coach's athletes live on their account (cross-device) ---
+app.get('/api/roster', (req, res) => {
+  const u = requireUser(req, res); if (!u) return;
+  res.json({ ok: true, roster: u.roster || [] });
+});
+app.post('/api/athlete', (req, res) => {
+  const u = requireUser(req, res); if (!u) return;
+  const a = req.body && req.body.athlete;
+  if (!a || typeof a !== 'object' || !a.id) return res.status(400).json({ error: 'bad_input' });
+  u.roster = u.roster || [];
+  const i = u.roster.findIndex((x) => x.id === a.id);
+  if (i >= 0) u.roster[i] = a; else u.roster.unshift(a);
+  if (u.roster.length > 300) u.roster.length = 300;
+  saveUsers();
+  res.json({ ok: true });
+});
+app.post('/api/athlete/delete', (req, res) => {
+  const u = requireUser(req, res); if (!u) return;
+  const id = req.body && req.body.id;
+  u.roster = (u.roster || []).filter((x) => x.id !== id);
+  saveUsers();
+  res.json({ ok: true });
+});
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, anthropicKey: KEY_OK, model: process.env.FUEL_MODEL || 'claude-sonnet-5' }));
 
@@ -86,15 +183,13 @@ app.post('/api/plan', async (req, res) => {
     .join(', ');
 
   // --- trial gate: enforce BEFORE spending AI tokens ---
-  let coachRec = null;
+  let coachRec = userFromToken(tokenOf(req));
   if (TRIAL) {
-    const email = normEmail(b.coach && b.coach.email);
-    if (!email) return res.status(401).json({ error: 'need_coach', message: 'Please sign in to build a plan.' });
-    coachRec = COACHES[email];
-    if (!coachRec) { coachRec = COACHES[email] = { email, name: (b.coach && b.coach.name) || '', school: (b.coach && b.coach.school) || '', firstSeen: Date.now(), plans: 0, activated: false }; saveCoaches(); }
+    if (!coachRec) { const email = normEmail(b.coach && b.coach.email); if (email) coachRec = USERS[email]; }
+    if (!coachRec) return res.status(401).json({ error: 'need_coach', message: 'Please sign in to build a plan.' });
     if (!coachRec.activated) {
-      const expired = Date.now() - coachRec.firstSeen > TRIAL.days * 86400000;
-      const overCap = coachRec.plans >= TRIAL.plans;
+      const expired = Date.now() - (coachRec.firstSeen || Date.now()) > TRIAL.days * 86400000;
+      const overCap = (coachRec.plans || 0) >= TRIAL.plans;
       if (expired || overCap) {
         return res.status(402).json({
           error: 'trial_over', reason: expired ? 'time' : 'cap',
@@ -119,7 +214,7 @@ app.post('/api/plan', async (req, res) => {
   try {
     const targets = computeTargets({ sex, age, heightCm, weightKg, activity, goal, profile });
     const plan = await generatePlan({ athlete, profile, targets });
-    if (coachRec && !coachRec.activated) { coachRec.plans++; saveCoaches(); }
+    if (coachRec && !coachRec.activated) { coachRec.plans = (coachRec.plans || 0) + 1; saveUsers(); }
     res.json({
       athlete: { ...athlete, positionLabel: profile.label },
       profile: { label: profile.label, focus: profile.focus, group: profile.group, groupSummary: profile.groupSummary },
@@ -135,15 +230,16 @@ app.post('/api/plan', async (req, res) => {
 app.post('/api/activate', (req, res) => {
   if (!TRIAL) return res.json({ ok: true }); // open brand — nothing to unlock
   const b = req.body || {};
-  const email = normEmail((b.coach && b.coach.email) || b.email);
+  const u = userFromToken(tokenOf(req));
+  const email = u ? u.email : normEmail((b.coach && b.coach.email) || b.email);
   const code = String(b.code || '').trim().toLowerCase();
   if (!email) return res.status(400).json({ error: 'need_coach', message: 'Sign in first.' });
   if (!code || !ACTIVATION_CODES.has(code)) return res.status(400).json({ error: 'bad_code', message: 'That code isn’t valid.' });
   // single-use: a code can bind to only one coach
-  for (const [em, rec] of Object.entries(COACHES)) { if (rec.code === code && em !== email) return res.status(409).json({ error: 'code_used', message: 'That code is already in use.' }); }
-  const rec = COACHES[email] || (COACHES[email] = { email, firstSeen: Date.now(), plans: 0 });
+  for (const [em, rec] of Object.entries(USERS)) { if (rec.code === code && em !== email) return res.status(409).json({ error: 'code_used', message: 'That code is already in use.' }); }
+  const rec = USERS[email] || (USERS[email] = { email, firstSeen: Date.now(), plans: 0 });
   rec.activated = true; rec.code = code; rec.activatedAt = Date.now();
-  saveCoaches();
+  saveUsers();
   console.log('[activate]', email, 'code', code);
   res.json({ ok: true });
 });
