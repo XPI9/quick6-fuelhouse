@@ -274,7 +274,11 @@ textarea{resize:vertical;min-height:60px}
 .lead-err:not(:empty){min-height:18px;margin-bottom:6px}
 .lead-fine{margin-top:14px;text-align:center;color:#889;font-size:11.5px}
 .lead-fine b{color:#aab}
+.buildbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:200;background:rgba(255,255,255,.07)}
+.buildbar>span{display:block;height:100%;width:0;background:var(--accent);box-shadow:0 0 12px var(--accent);border-radius:0 3px 3px 0;transition:width .35s linear}
 </style>
+
+<div id="buildBar" class="buildbar" hidden><span></span></div>
 
 <div id="leadGate" hidden aria-modal="true" role="dialog">
   <div class="lead-card">
@@ -507,8 +511,10 @@ async function submitPlan(){
   const err=byId('formErr'); if(err) err.innerHTML='';
   const v=validOB(); if(v){ if(err) err.innerHTML=`<div class="err">${esc(v)}</div>`; return; }
   const btn=byId('goBtn'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Building the plan…'; }
-  try{ renderPlan(await requestPlan()); }
+  startBar();
+  try{ const d=await requestPlan(); finishBar(); renderPlan(d); }
   catch(e){
+    resetBar();
     if(btn){ btn.disabled=false; btn.innerHTML=`${I.bolt} Build the plan`; }
     if(e.trialOver){ openActivate(e.message); return; }
     if(e.needCoach){ openLeadGate(); return; }
@@ -517,9 +523,16 @@ async function submitPlan(){
 }
 async function regenPlan(){
   const btn=byId('regenBtn'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> New plan…'; }
-  try{ renderPlan(await requestPlan()); }
-  catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=`${I.regen} New plan`; } if(e.trialOver){ openActivate(e.message); return; } if(e.needCoach){ openLeadGate(); return; } alert(e.message||'Could not generate a new plan.'); }
+  startBar();
+  try{ const d=await requestPlan(); finishBar(); renderPlan(d); }
+  catch(e){ resetBar(); if(btn){ btn.disabled=false; btn.innerHTML=`${I.regen} New plan`; } if(e.trialOver){ openActivate(e.message); return; } if(e.needCoach){ openLeadGate(); return; } alert(e.message||'Could not generate a new plan.'); }
 }
+
+// Build progress bar (accent color) — eases toward ~92% while the AI works, snaps to 100% on done.
+let _barT=null;
+function startBar(){ var b=byId('buildBar'); if(!b) return; var f=b.firstElementChild; clearTimeout(_barT); b.hidden=false; f.style.transition='none'; f.style.width='0%'; void f.offsetWidth; f.style.transition='width .35s linear'; var t0=Date.now(); (function step(){ var p=92*(1-Math.exp(-(Date.now()-t0)/9000)); f.style.width=p.toFixed(1)+'%'; _barT=setTimeout(step,350); })(); }
+function finishBar(){ var b=byId('buildBar'); if(!b) return; var f=b.firstElementChild; clearTimeout(_barT); f.style.width='100%'; setTimeout(function(){ b.hidden=true; f.style.transition='none'; f.style.width='0%'; },450); }
+function resetBar(){ var b=byId('buildBar'); if(!b) return; clearTimeout(_barT); b.hidden=true; b.firstElementChild.style.width='0%'; }
 
 function initials(n){ const p=(n||'Athlete').trim().split(/\s+/); return ((p[0]?.[0]||'A')+(p[1]?.[0]||'')).toUpperCase(); }
 
