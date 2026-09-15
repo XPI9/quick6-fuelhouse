@@ -374,6 +374,18 @@ function upsert(rec){ const r=loadRoster(); const i=r.findIndex(x=>x.id===rec.id
 function removeAthlete(id){ saveRoster(loadRoster().filter(x=>x.id!==id)); if(authToken()) fetch('/api/athlete/delete',{method:'POST',headers:authHeaders(),body:JSON.stringify({id:id})}).catch(function(){}); }
 function pushAthlete(rec){ if(!authToken()) return; fetch('/api/athlete',{method:'POST',headers:authHeaders(),body:JSON.stringify({athlete:rec})}).catch(function(){}); }
 async function syncRoster(){ if(!authToken()) return; try{ var r=await fetch('/api/roster',{headers:authHeaders()}); if(r.status===401){ try{localStorage.removeItem('af_session');}catch(e){} return; } var d=await r.json(); if(d&&Array.isArray(d.roster)) saveRoster(d.roster); }catch(e){} }
+// Merge on sign-in so a coach NEVER loses athletes they saved on this device before making an account.
+// Server wins on id conflicts; local-only athletes get uploaded (adopted) into the account.
+async function adoptLocalRoster(){
+  if(!authToken()) return;
+  var local=loadRoster(), server=[];
+  try{ var r=await fetch('/api/roster',{headers:authHeaders()}); if(r.status===401){ try{localStorage.removeItem('af_session');}catch(e){} return; } var d=await r.json(); if(d&&Array.isArray(d.roster)) server=d.roster; }catch(e){ return; }
+  var byId={}; server.forEach(function(a){ if(a&&a.id) byId[a.id]=a; });
+  var uploads=[]; local.forEach(function(a){ if(a&&a.id&&!byId[a.id]){ byId[a.id]=a; uploads.push(a); } });
+  var merged=Object.keys(byId).map(function(k){ return byId[k]; }).sort(function(a,b){ return (b.savedAt||0)-(a.savedAt||0); });
+  saveRoster(merged);
+  uploads.forEach(function(a){ pushAthlete(a); });
+}
 function uid(){ return 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 
 function renderHome(){
@@ -523,7 +535,7 @@ function needCoach(){ try{ return !!(window.__BRAND&&window.__BRAND.leadCapture)
 function openLeadGate(){ var g=byId('leadGate'); if(!g) return; g.hidden=false; setGateMode('signup'); var n=byId('lcName'); if(n) setTimeout(function(){ try{n.focus();}catch(e){} },60); }
 function closeLeadGate(){ var g=byId('leadGate'); if(g) g.hidden=true; }
 function setGateMode(m){ var su=m!=='login'; var ps=byId('paneSignup'),pl=byId('paneLogin'); if(ps)ps.hidden=!su; if(pl)pl.hidden=su; byId('tabSignup').classList.toggle('on',su); byId('tabLogin').classList.toggle('on',!su); var e=byId('leadErr'),le=byId('loginErr'); if(e)e.textContent=''; if(le)le.textContent=''; }
-async function afterAuth(){ try{ await syncRoster(); }catch(e){} renderHome(); }
+async function afterAuth(){ try{ await adoptLocalRoster(); }catch(e){} renderHome(); }
 
 async function submitSignup(){
   var name=(byId('lcName').value||'').trim(), school=(byId('lcSchool').value||'').trim(), email=(byId('lcEmail').value||'').trim(), phone=(byId('lcPhone').value||'').trim(), pin=(byId('lcPin').value||'').trim();
@@ -729,7 +741,7 @@ const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
   var ac=byId('acCode'); if(ac) ac.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitActivate(); } });
   var t=(window.__BRAND&&window.__BRAND.trial); var tn=byId('lcTrial'); if(t&&tn) tn.innerHTML='Free <b>'+t.days+'-day</b> trial &middot; no card needed'; })();
 fetch((window.__BRAND&&window.__BRAND.demos)||'/demos.json').then(r=>r.json()).then(m=>{ DEMOS=m||{}; }).catch(()=>{ DEMOS={}; });
-fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; if(authToken()){ syncRoster().then(renderHome); } else { renderHome(); } }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
+fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; if(authToken()){ adoptLocalRoster().then(renderHome); } else { renderHome(); } }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
 if('serviceWorker' in navigator){ addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
 </script>
 </body>
