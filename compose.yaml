@@ -20,6 +20,9 @@ services:
       - "8.8.8.8"
     ports:
       - "172.18.0.1:3300:3300"
+    volumes:
+      # Persist coach accounts (users.json) + leads across rebuilds.
+      - ./data-q6:/app/data
 
   # XPI Athlete Fuel (XPI, amber, for HS coaches) -> athletefuel.xpisolutions.com
   athletefuel:
