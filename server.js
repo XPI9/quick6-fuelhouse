@@ -203,12 +203,25 @@ app.post('/api/plan', async (req, res) => {
   const injury = ['healthy', 'returning', 'injured'].includes(b.injury) ? b.injury : 'healthy';
   const injuryDesc = (b.injuryDesc || '').toString().slice(0, 200);
 
+  // Prior test snapshots (for progression) — format each like the current metrics line.
+  const histArr = Array.isArray(b.history) ? b.history.slice(-6) : [];
+  const historyText = histArr.map((h) => {
+    const mt = metricDefs
+      .filter((m) => h && h.metrics && String(h.metrics[m.key]).trim() !== '')
+      .map((m) => `${m.label}: ${String(h.metrics[m.key]).slice(0, 20)}${m.unit ? ' ' + m.unit : ''}`)
+      .join(', ');
+    const when = (h && h.date ? String(h.date).slice(0, 10) : '') || 'earlier';
+    const wt = h && h.weightLb ? `${h.weightLb} lb` : '';
+    const body = [wt, mt].filter(Boolean).join('; ');
+    return body ? `  - ${when}: ${body}` : '';
+  }).filter(Boolean).join('\n');
+
   const athlete = {
     name: (b.name || '').toString().slice(0, 80),
     age, sex, sport, diningHall: !!b.diningHall,
     restrictions: (b.restrictions || '').toString().slice(0, 300),
     notes: (b.notes || '').toString().slice(0, 300),
-    metricsText, equipment, injury, injuryDesc,
+    metricsText, historyText, equipment, injury, injuryDesc,
   };
 
   try {
@@ -305,9 +318,22 @@ const INDEX_HTML = (() => {
     .replace('</head>', `<style>:root{--accent:${B.accent}}</style><script>window.__BRAND=${JSON.stringify({ name: B.name, short: B.short, accent: B.accent, tagline: B.tagline, demos: B.demos, leadCapture: !!B.leadCapture, trial: TRIAL ? { days: TRIAL.days, plans: TRIAL.plans } : null })}</script></head>`);
 })();
 function serveIndex(_req, res) { res.type('html').send(INDEX_HTML); }
+const PITCH_HTML = (() => {
+  const B = BRAND;
+  let h; try { h = fs.readFileSync(path.join(__dirname, 'public', 'pitch.html'), 'utf8'); } catch { return ''; }
+  return h
+    .replace('<title>XPI Athlete Fuel — for Coaches</title>', `<title>${B.name} — for Coaches</title>`)
+    .split('/icons-xpi/favicon-64.png').join(B.iconDir + '/favicon-64.png')
+    .replace('--accent:#F2A93B;', `--accent:${B.accent};`)
+    .replace('XPI<span>&middot;</span> ATHLETE FUEL<small>ATHLETE PERFORMANCE</small>',
+             `${B.markMain}<span>${B.markAccent}</span> ${B.markSub}<small>${(B.tagline || '').toUpperCase()}</small>`)
+    .split('XPI Athlete Fuel gives a coach').join(`${B.name} gives a coach`)
+    .split('https://athletefuel.xpisolutions.com').join('https://' + (B.site || 'athletefuel.xpisolutions.com'))
+    .split('>athletefuel.xpisolutions.com<').join('>' + (B.site || 'athletefuel.xpisolutions.com') + '<');
+})();
 app.get('/', serveIndex);
 app.get('/index.html', serveIndex);
-app.get('/pitch', (_req, res) => res.type('html').sendFile(path.join(__dirname, 'public', 'pitch.html')));
+app.get('/pitch', (_req, res) => res.type('html').send(PITCH_HTML || 'Pitch unavailable.'));
 app.get('/manifest.webmanifest', (_req, res) => res.type('application/manifest+json').json({
   name: BRAND.name, short_name: BRAND.short,
   description: 'Performance nutrition + training plans for football & track athletes.',

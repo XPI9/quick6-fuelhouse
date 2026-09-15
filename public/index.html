@@ -274,6 +274,14 @@ textarea{resize:vertical;min-height:60px}
 .lead-err:not(:empty){min-height:18px;margin-bottom:6px}
 .lead-fine{margin-top:14px;text-align:center;color:#889;font-size:11.5px}
 .lead-fine b{color:#aab}
+.progbox{display:flex;gap:11px;align-items:flex-start;margin:14px 0;padding:13px 15px;border-radius:13px;background:color-mix(in srgb, var(--accent) 12%, #14161c);border:1px solid color-mix(in srgb, var(--accent) 40%, transparent)}
+.progbox svg{width:20px;height:20px;flex:0 0 auto;color:var(--accent);margin-top:1px}
+.progbox b{color:#fff}
+.testhist{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px}
+.th-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint,#889);margin-bottom:6px}
+.th-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
+.th-d{color:#9aa3b2;flex:0 0 auto}
+.th-v{color:#e7e9ee;text-align:right}
 .lead-tabs{display:flex;gap:6px;margin:16px 0 4px;background:#0e1014;border:1px solid rgba(255,255,255,.09);border-radius:11px;padding:4px}
 .lt-tab{flex:1;padding:9px;border:0;border-radius:8px;background:transparent;color:#aab;font-weight:700;font-size:13.5px;cursor:pointer}
 .lt-tab.on{background:var(--accent);color:#111}
@@ -486,7 +494,8 @@ function captureForm(){
 }
 
 function validOB(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft; if(!(age>=10&&age<=60)) return 'Enter a valid age.'; if(!(wt>=60&&wt<=520)) return 'Enter a valid weight in pounds.'; if(!(ft>=4&&ft<=7)) return 'Enter a valid height (feet).'; return ''; }
-function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', equipment:OB.equipment||'gym', injury:OB.injury||'healthy', injuryDesc:OB.injuryDesc||'', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{} }; }
+function athleteTests(id){ if(!id) return []; var a=loadRoster().find(function(x){return x.id===id;}); return (a&&Array.isArray(a.tests))?a.tests:[]; }
+function obToBody(){ const age=+OB.age,wt=+OB.wt,ft=+OB.ft,inch=+(OB.inch||0); return { name:OB.name, age, sex:OB.sex, sport:OB.sport, position:OB.position, goal:OB.goal, activity:OB.activity||'high', equipment:OB.equipment||'gym', injury:OB.injury||'healthy', injuryDesc:OB.injuryDesc||'', heightCm:(ft*12+inch)*2.54, weightKg:wt/2.2046226218, diningHall:OB.diningHall, restrictions:OB.restrictions, notes:OB.notes, metrics:OB.metrics||{}, history:athleteTests(OB.id) }; }
 async function requestPlan(){
   const body=obToBody();
   const r=await fetch('/api/plan',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
@@ -495,7 +504,13 @@ async function requestPlan(){
   if(r.status===401 && d.error==='need_coach'){ var e2=new Error('signin'); e2.needCoach=true; throw e2; }
   if(d.error) throw new Error(d.message||d.error);
   if(!OB.id) OB.id=uid();
-  upsert({ id:OB.id, name:d.athlete.name||OB.name||'Athlete', form:{...OB}, plan:d, savedAt:Date.now() });
+  // Snapshot this test for progression history (deduped vs the last one).
+  const prev=loadRoster().find(x=>x.id===OB.id);
+  const tests=(prev&&Array.isArray(prev.tests))?prev.tests.slice():[];
+  const snap={ date:new Date().toISOString().slice(0,10), weightLb:(+OB.wt||null), metrics:{...(OB.metrics||{})} };
+  const hasM=Object.values(snap.metrics).some(v=>String(v||'').trim()!=='');
+  if(snap.weightLb||hasM){ const last=tests[tests.length-1]; const same=last&&last.weightLb===snap.weightLb&&JSON.stringify(last.metrics||{})===JSON.stringify(snap.metrics); if(!same){ tests.push(snap); if(tests.length>12) tests.splice(0,tests.length-12); } }
+  upsert({ id:OB.id, name:d.athlete.name||OB.name||'Athlete', form:{...OB}, plan:d, tests:tests, savedAt:Date.now() });
   return d;
 }
 /* ---------- auth / session ---------- */
@@ -595,6 +610,8 @@ function renderPlan(d){
   const safe=(t.notes||[]).map(n=>esc(n)).join(' ');
   const mdefs=(META.metrics&&META.metrics[OB.sport])||[];
   const mtiles=mdefs.filter(m=>OB.metrics&&String(OB.metrics[m.key]||'').trim()!=='').map(m=>`<div class="mtile"><div class="mv">${esc(OB.metrics[m.key])}</div><div class="ml">${esc(m.label)}${m.unit?' '+esc(m.unit):''}</div></div>`).join('');
+  const hist=athleteTests(OB.id);
+  const histHTML=hist.length>1?`<div class="testhist"><div class="th-h">Test history</div>${hist.slice(-6).map(h=>{const parts=mdefs.filter(m=>h.metrics&&String(h.metrics[m.key]||'').trim()!=='').map(m=>esc(m.label.split(' ')[0])+' '+esc(h.metrics[m.key])).join(' · ');return `<div class="th-row"><span class="th-d">${esc(h.date||'')}</span><span class="th-v">${esc(h.weightLb?h.weightLb+' lb':'')}${parts?(h.weightLb?' · ':'')+parts:''}</span></div>`;}).join('')}</div>`:'';
 
   view.innerHTML=`
   <div class="card" id="planCard">
@@ -607,6 +624,7 @@ function renderPlan(d){
     </div>
     ${pl.headline?`<div class="plan-headline">${esc(pl.headline)}</div>`:''}
     ${pl.summary?`<div class="summary">${esc(pl.summary)}</div>`:''}
+    ${pl.progressionNote?`<div class="progbox">${I.regen}<div><b>Progress since last test.</b> ${esc(pl.progressionNote)}</div></div>`:''}
     ${pl.injuryNote?`<div class="injbox">${I.flag}<div><b>Injury — read this first.</b> ${esc(pl.injuryNote)}</div></div>`:''}
 
     <div class="macros">
@@ -623,7 +641,7 @@ function renderPlan(d){
     ${pl.hydration?`<div class="sec"><div class="sec-h">${I.drop} Hydration</div><div class="block">${esc(pl.hydration)}</div></div>`:''}
     ${pl.gameDay?`<div class="sec"><div class="sec-h">${I.flag} Game / meet day</div><div class="block">${esc(pl.gameDay)}</div></div>`:''}
     ${pl.recovery?`<div class="sec"><div class="sec-h">${I.bed} Recovery</div><div class="block">${esc(pl.recovery)}</div></div>`:''}
-    ${(mtiles||pl.perfNotes)?`<div class="sec"><div class="sec-h">${I.run} Performance testing</div>${mtiles?`<div class="mtiles">${mtiles}</div>`:''}${pl.perfNotes?`<div class="block" style="margin-top:${mtiles?'10px':'0'}">${esc(pl.perfNotes)}</div>`:''}</div>`:''}
+    ${(mtiles||pl.perfNotes||histHTML)?`<div class="sec"><div class="sec-h">${I.run} Performance testing</div>${mtiles?`<div class="mtiles">${mtiles}</div>`:''}${pl.perfNotes?`<div class="block" style="margin-top:${mtiles?'10px':'0'}">${esc(pl.perfNotes)}</div>`:''}${histHTML}</div>`:''}
     <div class="sec"><div class="sec-h">${I.run} Training — ${esc(pl.training&&pl.training.focus||d.profile.focus)}</div>${tdays||'<div class="block">No training returned.</div>'}</div>
     ${(pl.moves&&pl.moves.length)?`<div class="sec"><div class="sec-h">${I.play} How-to demos <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">&mdash; tap a move to watch</span></div><div class="moves">${pl.moves.map(m=>{const dm=demoUrl(m);return `<a class="movechip${dm.keith?' keith':''}" href="${dm.url}" target="_blank" rel="noopener">${esc(m)}${dm.keith?'<span class="kb">Q6</span>':''}</a>`;}).join('')}</div></div>`:''}
     ${supps?`<div class="sec"><div class="sec-h">${I.pill} Supplements <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">— food first, all optional</span></div><div class="card" style="margin-top:0;box-shadow:none;padding:4px 14px">${supps}</div></div>`:''}
@@ -657,6 +675,7 @@ function planText(d){
   let s=`QUICK6 FUELHOUSE — ${(a.name||'Athlete').toUpperCase()}\n${a.positionLabel} · ${t.goalLabel} · ${t.weightLb} lb\n`;
   if(pl.headline) s+=`\n${pl.headline}\n`;
   if(pl.summary) s+=`${pl.summary}\n`;
+  if(pl.progressionNote) s+=`\nPROGRESS SINCE LAST TEST\n${pl.progressionNote}\n`;
   if(pl.injuryNote) s+=`\n⚠ INJURY — READ FIRST\n${pl.injuryNote}\n`;
   s+=`\nDAILY TARGETS\n  Calories: ${t.calories}\n  Protein: ${t.protein_g} g\n  Carbs: ${t.carbs_g} g\n  Fat: ${t.fat_g} g\n`;
   s+=`\nDAILY MEALS\n`; (pl.dayMeals||[]).forEach(m=>{ s+=`• ${m.meal}${m.time?' ('+m.time+')':''}${m.approxCals?' ~'+m.approxCals+' kcal':''}\n`; (m.items||[]).forEach(it=>s+=`   - ${it}\n`); });
