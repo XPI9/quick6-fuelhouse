@@ -133,6 +133,20 @@ app.get('/api/me', (req, res) => {
   res.json({ ok: true, coach: publicUser(u) });
 });
 
+// POST /api/admin/wipe — owner erases ALL coach data for this brand (gated by LEAD_ADMIN_KEY).
+// Clears accounts, share links, and the signup log. For clearing test data before real coaches.
+app.post('/api/admin/wipe', (req, res) => {
+  const key = process.env.LEAD_ADMIN_KEY;
+  const b = req.body || {};
+  if (!key || b.key !== key) return res.status(403).json({ error: 'forbidden', message: 'Wrong admin key.' });
+  const n = Object.keys(USERS).length;
+  USERS = {}; SHARES = {};
+  saveUsers(); saveShares();
+  try { fs.writeFileSync(LEADS_FILE, ''); } catch (e) {}
+  console.log('[wipe]', BRAND.key, 'erased', n, 'accounts');
+  res.json({ ok: true, message: `Erased ${n} account(s), all share links, and the signup log for ${BRAND.name}. Clean slate.` });
+});
+
 // POST /api/admin/reset-pin — owner resets any coach's PIN (gated by LEAD_ADMIN_KEY).
 app.post('/api/admin/reset-pin', (req, res) => {
   const key = process.env.LEAD_ADMIN_KEY;
