@@ -592,6 +592,7 @@ function setGateMode(m){ var su=m!=='login'; var ps=byId('paneSignup'),pl=byId('
 async function afterAuth(){ renderCoachChip(); try{ await adoptLocalRoster(); }catch(e){} renderHome(); }
 
 /* ---------- coach profile ---------- */
+function currentCoach(){ var s=session(); if(s&&s.coach) return s.coach; return window.__SHARED_COACH||null; }
 function renderCoachChip(){ var c=byId('coachChip'); if(!c) return; var s=session(); if(!s||!s.coach){ c.hidden=true; return; } var co=s.coach; var first=(co.name||'Coach').split(/\s+/)[0]; c.hidden=false; c.innerHTML='<span class="cc-ava">'+(co.photo?'<img src="'+esc(co.photo)+'" alt="">':esc(initials(co.name)))+'</span><span>'+esc(first)+'</span>'; }
 var _cpPhoto=null;
 function openProfile(){ var s=session(); if(!s||!s.coach) return; var g=byId('profGate'); if(!g) return; _cpPhoto=null; byId('cpName').value=s.coach.name||''; byId('cpSchool').value=s.coach.school||''; var av=byId('cpAva'); if(av) av.innerHTML=s.coach.photo?'<img src="'+esc(s.coach.photo)+'" alt="">':esc(initials(s.coach.name)); byId('profErr').textContent=''; g.hidden=false; }
@@ -734,10 +735,13 @@ function renderPlan(d){
     ${supps?`<div class="sec"><div class="sec-h">${I.pill} Supplements <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">— food first, all optional</span></div><div class="card" style="margin-top:0;box-shadow:none;padding:4px 14px">${supps}</div></div>`:''}
     ${watch?`<div class="sec"><div class="watch"><div class="wh">${I.flag} Coach — watch for</div><ul>${watch}</ul></div></div>`:''}
 
-    ${(function(){var s=session();var co=s&&s.coach;if(!co||!co.name)return '';return `<div class="coachcredit">${co.photo?`<img src="${esc(co.photo)}" alt="">`:`<span class="cc-i">${esc(initials(co.name))}</span>`}<div><b>Coach ${esc(co.name)}</b>${co.school?` &middot; ${esc(co.school)}`:''}</div></div>`;})()}
+    ${(function(){var co=currentCoach();if(!co||!co.name)return '';return `<div class="coachcredit">${co.photo?`<img src="${esc(co.photo)}" alt="">`:`<span class="cc-i">${esc(initials(co.name))}</span>`}<div><b>Coach ${esc(co.name)}</b>${co.school?` &middot; ${esc(co.school)}`:''}</div></div>`;})()}
     <div class="disclaimer disclaimer-hide">Quick6 FuelHouse gives coaching guidance for healthy athletes — it is <b>not medical or dietary treatment</b>. A trainer should review every plan, and any athlete with a medical condition, injury, or eating concern should see a physician or registered dietitian.</div>
   </div>
 
+  ${window.__SHARED ? `
+  <button class="btn ghost" id="pdfBtn">${I.download} Save as PDF / Print</button>
+  <div class="powered">Powered by <b>XPI Solutions</b></div>` : `
   <button class="btn" id="shareBtn">${I.share} Send to athlete</button>
   <button class="btn ghost" id="pdfBtn" style="margin-top:10px">${I.download} Save as PDF / Print</button>
   <div class="actions">
@@ -747,14 +751,14 @@ function renderPlan(d){
   <div class="actions">
     <button class="btn ghost" id="backBtn">${I.back} Roster</button>
     <button class="btn ghost" id="editBtn">${I.edit} Edit profile</button>
-  </div>`;
+  </div>`}`;
 
-  byId('shareBtn').onclick=()=>sharePlan(d);
-  byId('pdfBtn').onclick=()=>window.print();
-  byId('backBtn').onclick=renderHome;
-  byId('editBtn').onclick=()=>{ renderForm(); window.scrollTo({top:0,behavior:'smooth'}); };
-  byId('regenBtn').onclick=regenPlan;
-  byId('copyBtn').onclick=()=>copyPlan(d);
+  if(byId('shareBtn')) byId('shareBtn').onclick=()=>sharePlan(d);
+  if(byId('pdfBtn')) byId('pdfBtn').onclick=()=>window.print();
+  if(byId('backBtn')) byId('backBtn').onclick=renderHome;
+  if(byId('editBtn')) byId('editBtn').onclick=()=>{ renderForm(); window.scrollTo({top:0,behavior:'smooth'}); };
+  if(byId('regenBtn')) byId('regenBtn').onclick=regenPlan;
+  if(byId('copyBtn')) byId('copyBtn').onclick=()=>copyPlan(d);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -781,9 +785,27 @@ function planText(d){
 }
 function copyPlan(d){ navigator.clipboard.writeText(planText(d)).then(()=>{ const b=byId('copyBtn'); if(!b) return; const o=b.innerHTML; b.classList.add('copied'); b.innerHTML=`${I.check} Copied`; setTimeout(()=>{ b.classList.remove('copied'); b.innerHTML=o; },1600); }).catch(()=>{}); }
 async function sharePlan(d){
-  var text=planText(d), title='Quick6 FuelHouse — '+(d.athlete.name||'Athlete');
+  var btn=byId('shareBtn'); var old=btn?btn.innerHTML:'';
+  var name=(d.athlete&&d.athlete.name)||'your athlete';
+  var brand=(window.__BRAND&&window.__BRAND.short)||'FuelHouse';
+  // Need the athlete saved (has an id) to make a link. Build creates the id, so this holds.
+  if(!OB.id || !authToken()){ return shareText(d); }
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Making link…'; }
+  try{
+    var r=await fetch('/api/share',{method:'POST',headers:authHeaders(),body:JSON.stringify({athleteId:OB.id})});
+    var j=await r.json();
+    if(!j.ok||!j.url) throw new Error(j.message||'no link');
+    if(btn){ btn.disabled=false; btn.innerHTML=old; }
+    var msg=name+"'s "+brand+" plan — tap to open: "+j.url;
+    if(navigator.share){ try{ await navigator.share({title:brand+' — '+name, text:name+"'s plan", url:j.url}); return; }catch(_){ return; } }
+    try{ await navigator.clipboard.writeText(msg); alert('Link copied — paste it into a text to '+name+':\n\n'+j.url); }catch(_){ prompt('Copy this link and text it to '+name+':', j.url); }
+  }catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=old; } shareText(d); }
+}
+// Fallback: share the full plan as text (old behavior) when no link can be made.
+async function shareText(d){
+  var text=planText(d), title=((window.__BRAND&&window.__BRAND.short)||'FuelHouse')+' — '+(d.athlete.name||'Athlete');
   if(navigator.share){ try{ await navigator.share({title:title, text:text}); }catch(_){ } return; }
-  try{ await navigator.clipboard.writeText(text); alert('Plan copied — paste it into a text or email to your athlete. (Native share isn’t available on this device.)'); }catch(_){ alert('Copy not available on this device.'); }
+  try{ await navigator.clipboard.writeText(text); alert('Plan copied — paste it into a text or email to your athlete.'); }catch(_){ alert('Copy not available on this device.'); }
 }
 
 // ---------- intro / splash (speed streaks) ----------
@@ -823,7 +845,23 @@ const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
   renderCoachChip();
   var t=(window.__BRAND&&window.__BRAND.trial); var tn=byId('lcTrial'); if(t&&tn) tn.innerHTML='Free <b>'+t.days+'-day</b> trial &middot; no card needed'; })();
 fetch((window.__BRAND&&window.__BRAND.demos)||'/demos.json').then(r=>r.json()).then(m=>{ DEMOS=m||{}; }).catch(()=>{ DEMOS={}; });
-fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; if(authToken()){ adoptLocalRoster().then(renderHome); } else { renderHome(); } }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); });
+var __shareTok=(location.pathname.match(/^\/p\/([A-Za-z0-9_\-]+)/)||[])[1];
+async function startSharedMode(tok){
+  window.__SHARED=true;
+  var intro=byId('intro'); if(intro) intro.remove();
+  try{ META=await fetch('/api/positions').then(r=>r.json()); }catch(e){}
+  try{ DEMOS=await fetch((window.__BRAND&&window.__BRAND.demos)||'/demos.json').then(r=>r.json())||{}; }catch(e){}
+  try{
+    var j=await fetch('/api/shared/'+encodeURIComponent(tok)).then(r=>r.json());
+    if(!j.ok||!j.share){ view.innerHTML='<div class="card"><div class="card-h">Plan not found</div><div class="block">This link is no longer available. Ask your coach to resend it.</div></div>'; return; }
+    var sh=j.share;
+    window.__SHARED_COACH=sh.coach||null;
+    Object.assign(OB, sh.form||{});
+    renderPlan(sh.plan);
+  }catch(e){ view.innerHTML='<div class="card"><div class="card-h">Couldn’t load the plan</div><div class="block">Check your connection and try the link again.</div></div>'; }
+}
+if(__shareTok){ startSharedMode(__shareTok); }
+else { fetch('/api/positions').then(r=>r.json()).then(m=>{ META=m; if(authToken()){ adoptLocalRoster().then(renderHome); } else { renderHome(); } }).catch(()=>{ META={sports:{football:[{key:'ath',label:'Athlete'}],track:[{key:'sprint',label:'Sprints'}]},activity:[{key:'high',label:'Daily practice'}],goals:[{key:'maintain',label:'Maintain'}]}; renderHome(); }); }
 if('serviceWorker' in navigator){ addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
 </script>
 </body>

@@ -54,6 +54,16 @@ function saveUsers() {
   _saveT = setTimeout(() => { try { fs.mkdirSync(path.dirname(USERS_FILE), { recursive: true }); fs.writeFileSync(USERS_FILE, JSON.stringify(USERS)); } catch (e) { console.error('[users save]', e); } }, 200);
 }
 
+// Shared plan links (public, read-only) — token -> plan snapshot.
+const SHARES_FILE = path.join(__dirname, 'data', 'shares.json');
+let SHARES = {};
+try { SHARES = JSON.parse(fs.readFileSync(SHARES_FILE, 'utf8')) || {}; } catch { SHARES = {}; }
+let _saveS = null;
+function saveShares() {
+  clearTimeout(_saveS);
+  _saveS = setTimeout(() => { try { fs.mkdirSync(path.dirname(SHARES_FILE), { recursive: true }); fs.writeFileSync(SHARES_FILE, JSON.stringify(SHARES)); } catch (e) { console.error('[shares save]', e); } }, 200);
+}
+
 // --- lightweight auth: email + PIN (hashed), bearer token per device ---
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString('hex');
 const newToken = () => crypto.randomBytes(24).toString('base64url');
@@ -156,6 +166,33 @@ app.post('/api/athlete/delete', (req, res) => {
   u.roster = (u.roster || []).filter((x) => x.id !== id);
   saveUsers();
   res.json({ ok: true });
+});
+
+// Create (or refresh) a public share link for one athlete's plan.
+app.post('/api/share', (req, res) => {
+  const u = requireUser(req, res); if (!u) return;
+  const id = req.body && req.body.athleteId;
+  const rec = (u.roster || []).find((a) => a.id === id);
+  if (!rec || !rec.plan) return res.status(400).json({ error: 'no_plan', message: 'Build the plan first, then send it.' });
+  let token = rec.shareToken;
+  if (!token) { token = crypto.randomBytes(9).toString('base64url'); rec.shareToken = token; saveUsers(); }
+  SHARES[token] = {
+    token, athleteName: rec.name || 'Athlete',
+    form: rec.form || {}, plan: rec.plan, tests: rec.tests || [],
+    coach: { name: u.name || '', school: u.school || '', photo: u.photo || '' },
+    at: Date.now(),
+  };
+  saveShares();
+  const proto = (req.headers['x-forwarded-proto'] || 'https').toString().split(',')[0];
+  const host = req.headers['host'];
+  res.json({ ok: true, url: `${proto}://${host}/p/${token}`, token });
+});
+
+// Public read-only plan JSON (no auth) — the shared link fetches this.
+app.get('/api/shared/:token', (req, res) => {
+  const s = SHARES[req.params.token];
+  if (!s) return res.status(404).json({ error: 'not_found' });
+  res.json({ ok: true, share: s });
 });
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, anthropicKey: KEY_OK, model: process.env.FUEL_MODEL || 'claude-sonnet-5' }));
@@ -344,6 +381,7 @@ const PITCH_HTML = (() => {
 })();
 app.get('/', serveIndex);
 app.get('/index.html', serveIndex);
+app.get('/p/:token', serveIndex); // shared read-only plan (app renders it client-side)
 app.get('/pitch', (_req, res) => res.type('html').send(PITCH_HTML || 'Pitch unavailable.'));
 app.get('/manifest.webmanifest', (_req, res) => res.type('application/manifest+json').json({
   name: BRAND.name, short_name: BRAND.short,
