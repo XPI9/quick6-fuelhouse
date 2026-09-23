@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { BRAND } from './lib/brand.js';
 import { sports, profileFor, METRICS, metricsFor, EQUIPMENT } from './lib/positions.js';
 import { computeTargets, ACTIVITY, GOALS } from './lib/nutrition.js';
-import { generatePlan } from './lib/anthropic.js';
+import { generatePlan, generateGameWeek } from './lib/anthropic.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -209,7 +209,7 @@ app.post('/api/share', (req, res) => {
   if (!token) { token = crypto.randomBytes(9).toString('base64url'); rec.shareToken = token; saveUsers(); }
   SHARES[token] = {
     token, athleteName: rec.name || 'Athlete',
-    form: rec.form || {}, plan: rec.plan, tests: rec.tests || [],
+    form: rec.form || {}, plan: rec.plan, tests: rec.tests || [], gameWeek: rec.gameWeek || null,
     coach: { name: u.name || '', school: u.school || '', photo: u.photo || '' },
     at: Date.now(),
   };
@@ -377,6 +377,32 @@ app.get('/api/leads', (req, res) => {
     return res.type('text/csv').set('Content-Disposition', 'attachment; filename="leads.csv"').send(csv);
   }
   res.json({ count: rows.length, leads: rows.reverse() });
+});
+
+// POST /api/gameweek — a full game-week fueling + recovery timeline for one athlete.
+app.post('/api/gameweek', async (req, res) => {
+  if (!KEY_OK) return res.status(400).json({ error: 'no_api_key', message: 'Add your ANTHROPIC_API_KEY to .env and restart.' });
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'x').toString().split(',')[0].trim();
+  if (!underLimit(ip, Number(process.env.FUEL_LIMIT || 30))) return res.status(429).json({ error: 'rate', message: 'Hit the hourly limit — give it a few minutes.' });
+  const b = req.body || {};
+  const age = num(b.age), heightCm = num(b.heightCm), weightKg = num(b.weightKg);
+  const sex = b.sex === 'female' ? 'female' : 'male';
+  if (!(age >= 10 && age <= 60) || !(heightCm >= 120 && heightCm <= 230) || !(weightKg >= 30 && weightKg <= 230)) return res.status(400).json({ error: 'bad_input', message: 'Build the athlete plan first.' });
+  const sport = b.sport === 'track' ? 'track' : 'football';
+  const profile = profileFor(sport, b.position);
+  const goal = GOALS[b.goal] ? b.goal : profile.goalDefault;
+  const activity = ACTIVITY[b.activity] ? b.activity : 'high';
+  const gameDay = (b.gameDay || 'Saturday').toString().slice(0, 20);
+  const injury = ['healthy', 'returning', 'injured'].includes(b.injury) ? b.injury : 'healthy';
+  const athlete = { name: (b.name || '').toString().slice(0, 80), sport, diningHall: !!b.diningHall, injury };
+  try {
+    const targets = computeTargets({ sex, age, heightCm, weightKg, activity, goal, profile });
+    const gameWeek = await generateGameWeek({ athlete, profile, targets, gameDay });
+    res.json({ ok: true, gameWeek });
+  } catch (e) {
+    console.error('[gameweek]', e);
+    res.status(500).json({ error: 'gw_failed', message: e.message });
+  }
 });
 
 // --- brand: serve a per-brand index (no flash) + dynamic manifest ---

@@ -290,6 +290,24 @@ textarea{resize:vertical;min-height:60px}
 .coachcredit img,.coachcredit .cc-i{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:0 0 auto}
 .coachcredit .cc-i{background:var(--accent);color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px}
 .coachcredit b{color:#fff}
+.gwdays{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+.gwdays button{flex:1;min-width:54px;padding:12px 6px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#0e1014;color:#e7e9ee;font-weight:700;font-size:13px;cursor:pointer}
+.gwdays button:hover{border-color:var(--accent);color:var(--accent)}
+.gwday{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.gwday .gwd{flex:0 0 40%;font-weight:700;color:#fff;font-size:13.5px}
+.gwday .gwtag{display:inline-block;margin-left:6px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:800}
+.gwday .gws{flex:1;color:#c7ccd6;font-size:13.5px;line-height:1.4}
+.gwh{margin:14px 0 6px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;font-size:12px}
+.gwt{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13.5px}
+.gwt .gwtime{flex:0 0 38%;color:#fff;font-weight:700}
+.gwt span:last-child{flex:1;color:#c7ccd6}
+.tsrow{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.tsbadge{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px;overflow:hidden;flex:0 0 auto}
+.tsbadge img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.tsinfo{flex:1;min-width:0}
+.tsname{font-weight:800;color:#fff;font-size:14.5px}
+.tsname span{font-weight:500;color:var(--faint);font-size:12.5px}
+.tspre{color:#c7ccd6;font-size:13px;line-height:1.45;margin-top:3px}
 .testhist{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px}
 .th-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint,#889);margin-bottom:6px}
 .th-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
@@ -303,6 +321,24 @@ textarea{resize:vertical;min-height:60px}
 </style>
 
 <div id="buildBar" class="buildbar" hidden><span></span></div>
+
+<div id="gwGate" hidden aria-modal="true" role="dialog">
+  <div class="lead-card">
+    <div class="lead-mark">GAME WEEK</div>
+    <h2>When's the game?</h2>
+    <p>Pick game / meet day and we'll build the full week of fueling around it.</p>
+    <div class="gwdays" id="gwDayRow">
+      <button type="button" data-d="Sunday">Sun</button>
+      <button type="button" data-d="Monday">Mon</button>
+      <button type="button" data-d="Tuesday">Tue</button>
+      <button type="button" data-d="Wednesday">Wed</button>
+      <button type="button" data-d="Thursday">Thu</button>
+      <button type="button" data-d="Friday">Fri</button>
+      <button type="button" data-d="Saturday">Sat</button>
+    </div>
+    <button id="gwCancel" class="lead-go" style="background:transparent;color:#889;margin-top:10px">Cancel</button>
+  </div>
+</div>
 
 <div id="leadGate" hidden aria-modal="true" role="dialog">
   <div class="lead-card">
@@ -432,10 +468,37 @@ function renderHome(){
     <div class="card-h">${I.roster} Your roster <span class="rcount">${roster.length}</span></div>
     <div class="roster">${roster.map(rosterRow).join('')}</div>
     <button class="btn" id="addBtn">${I.plus} Add athlete</button>
-  </div>`;
+  </div>
+  ${roster.length?`<button class="btn ghost" id="teamGwBtn" style="margin-top:10px">${I.flag} Team Game Day Sheet</button>`:''}`;
   view.querySelectorAll('[data-open]').forEach(el=>el.onclick=(e)=>{ if(e.target.closest('[data-del]')) return; openAthlete(el.dataset.open); });
   view.querySelectorAll('[data-del]').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); const a=loadRoster().find(x=>x.id===b.dataset.del); if(!confirm('Remove '+((a&&a.name)||'this athlete')+' from the roster?')) return; removeAthlete(b.dataset.del); renderHome(); });
   byId('addBtn').onclick=startNew;
+  if(byId('teamGwBtn')) byId('teamGwBtn').onclick=renderTeamSheet;
+}
+function renderTeamSheet(){
+  var roster=loadRoster();
+  var rows=roster.map(function(a){
+    var t=a.plan&&a.plan.targets, pl=a.plan&&a.plan.plan;
+    var pos=(a.plan&&a.plan.athlete&&a.plan.athlete.positionLabel)||(a.form&&a.form.sport==='track'?'Track':'Football');
+    var photo=a.form&&a.form.photo;
+    var pre='Build their Game Week for a game-day plan.';
+    if(a.gameWeek&&a.gameWeek.gameDayTimeline&&a.gameWeek.gameDayTimeline.length){ pre=a.gameWeek.gameDayTimeline.map(function(x){return x.time+': '+x.what;}).slice(0,3).join('  •  '); }
+    else if(pl&&pl.gameDay){ pre=String(pl.gameDay).split('. ')[0]+'.'; }
+    return `<div class="tsrow"><div class="tsbadge">${photo?`<img src="${esc(photo)}" alt="">`:esc(initials(a.name))}</div><div class="tsinfo"><div class="tsname">${esc(a.name||'Athlete')} <span>${esc(pos)}${t?' · '+esc(t.calories)+' kcal':''}</span></div><div class="tspre">${esc(pre)}</div></div></div>`;
+  }).join('');
+  var co=currentCoach();
+  view.innerHTML=`<button class="backlink" id="backBtn">${I.back} Roster</button>
+  <div class="card" id="planCard">
+    <div class="card-h">${I.flag} Team Game Day Sheet</div>
+    <div style="color:var(--faint);font-size:12.5px;margin:-4px 0 12px">What each athlete eats on game day — print it and post it in the locker room.</div>
+    ${rows||'<div class="block">No athletes yet.</div>'}
+    ${co&&co.name?`<div class="coachcredit">${co.photo?`<img src="${esc(co.photo)}" alt="">`:`<span class="cc-i">${esc(initials(co.name))}</span>`}<div><b>Coach ${esc(co.name)}</b>${co.school?` &middot; ${esc(co.school)}`:''}</div></div>`:''}
+    <div class="disclaimer disclaimer-hide">Coaching guidance a trainer reviews — not medical or dietary treatment.</div>
+  </div>
+  <button class="btn ghost" id="pdfBtn">${I.download} Save as PDF / Print</button>
+  <button class="btn ghost" id="backBtn2" style="margin-top:10px">${I.back} Back to roster</button>`;
+  byId('backBtn').onclick=renderHome; byId('backBtn2').onclick=renderHome; byId('pdfBtn').onclick=()=>window.print();
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 function rosterRow(a){
   const t=a.plan&&a.plan.targets;
@@ -684,7 +747,9 @@ function resetBar(){ var b=byId('buildBar'); if(!b) return; clearTimeout(_barT);
 
 function initials(n){ const p=(n||'Athlete').trim().split(/\s+/); return ((p[0]?.[0]||'A')+(p[1]?.[0]||'')).toUpperCase(); }
 
+let LASTPLAN=null;
 function renderPlan(d){
+  LASTPLAN=d;
   const t=d.targets, pl=d.plan, a=d.athlete;
   const meals=(pl.dayMeals||[]).map(m=>`
     <div class="meal">
@@ -729,6 +794,16 @@ function renderPlan(d){
     ${pl.hydration?`<div class="sec"><div class="sec-h">${I.drop} Hydration</div><div class="block">${esc(pl.hydration)}</div></div>`:''}
     ${pl.gameDay?`<div class="sec"><div class="sec-h">${I.flag} Game / meet day</div><div class="block">${esc(pl.gameDay)}</div></div>`:''}
     ${pl.recovery?`<div class="sec"><div class="sec-h">${I.bed} Recovery</div><div class="block">${esc(pl.recovery)}</div></div>`:''}
+    ${(function(){var gw=currentGameWeek();
+      if(!gw){ return window.__SHARED?'':`<div class="sec"><button class="btn ghost" id="gwBtn">${I.flag} Build Game Week</button><div style="color:var(--faint);font-size:12px;margin-top:8px">In-season: the full week of fueling + recovery around game day.</div></div>`; }
+      return `<div class="sec" id="gwSection"><div class="sec-h">${I.flag} Game Week &mdash; ${esc(gw.gameDay||'')}</div>`
+        + (gw.week||[]).map(w=>`<div class="gwday"><div class="gwd">${esc(w.day)}${w.tag?`<span class="gwtag">${esc(w.tag)}</span>`:''}</div><div class="gws">${esc(w.fuel)}</div></div>`).join('')
+        + `<div class="gwh">Game day</div>`
+        + (gw.gameDayTimeline||[]).map(t=>`<div class="gwt"><span class="gwtime">${esc(t.time)}</span><span>${esc(t.what)}</span></div>`).join('')
+        + (gw.note?`<div class="safenote">${I.check} ${esc(gw.note)}</div>`:'')
+        + (window.__SHARED?'':`<button class="btn ghost" id="gwRebuild" style="margin-top:12px">${I.regen} Change game day</button>`)
+        + `</div>`;
+    })()}
     ${(mtiles||pl.perfNotes||histHTML)?`<div class="sec"><div class="sec-h">${I.run} Performance testing</div>${mtiles?`<div class="mtiles">${mtiles}</div>`:''}${pl.perfNotes?`<div class="block" style="margin-top:${mtiles?'10px':'0'}">${esc(pl.perfNotes)}</div>`:''}${histHTML}</div>`:''}
     <div class="sec"><div class="sec-h">${I.run} Training — ${esc(pl.training&&pl.training.focus||d.profile.focus)}</div>${tdays||'<div class="block">No training returned.</div>'}</div>
     ${(pl.moves&&pl.moves.length)?`<div class="sec"><div class="sec-h">${I.play} How-to demos <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">&mdash; tap a move to watch</span></div><div class="moves">${pl.moves.map(m=>{const dm=demoUrl(m);return `<a class="movechip${dm.keith?' keith':''}" href="${dm.url}" target="_blank" rel="noopener">${esc(m)}${dm.keith?'<span class="kb">Q6</span>':''}</a>`;}).join('')}</div></div>`:''}
@@ -759,7 +834,27 @@ function renderPlan(d){
   if(byId('editBtn')) byId('editBtn').onclick=()=>{ renderForm(); window.scrollTo({top:0,behavior:'smooth'}); };
   if(byId('regenBtn')) byId('regenBtn').onclick=regenPlan;
   if(byId('copyBtn')) byId('copyBtn').onclick=()=>copyPlan(d);
+  if(byId('gwBtn')) byId('gwBtn').onclick=openGameWeek;
+  if(byId('gwRebuild')) byId('gwRebuild').onclick=openGameWeek;
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ---------- Game Week ---------- */
+function athleteGameWeek(id){ if(window.__SHARED) return window.__SHARED_GAMEWEEK||null; if(!id) return null; var a=loadRoster().find(function(x){return x.id===id;}); return (a&&a.gameWeek)||null; }
+function currentGameWeek(){ return athleteGameWeek(OB.id); }
+function openGameWeek(){ var g=byId('gwGate'); if(g) g.hidden=false; }
+function closeGameWeek(){ var g=byId('gwGate'); if(g) g.hidden=true; }
+async function genGameWeek(day){
+  closeGameWeek(); startBar();
+  try{
+    var body=obToBody(); body.gameDay=day;
+    var r=await fetch('/api/gameweek',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
+    var j=await r.json(); finishBar();
+    if(!j.ok||!j.gameWeek){ alert(j.message||'Could not build the game week.'); return; }
+    if(OB.id){ var rec=loadRoster().find(function(x){return x.id===OB.id;}); if(rec){ rec.gameWeek=j.gameWeek; upsert(rec); } }
+    if(LASTPLAN) renderPlan(LASTPLAN);
+    setTimeout(function(){ var el=byId('gwSection'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },120);
+  }catch(e){ resetBar(); alert('Could not build the game week — try again.'); }
 }
 
 function planText(d){
@@ -775,6 +870,8 @@ function planText(d){
   if(pl.hydration) s+=`\nHYDRATION\n${pl.hydration}\n`;
   if(pl.gameDay) s+=`\nGAME/MEET DAY\n${pl.gameDay}\n`;
   if(pl.recovery) s+=`\nRECOVERY\n${pl.recovery}\n`;
+  var gw=currentGameWeek();
+  if(gw){ s+=`\nGAME WEEK — ${gw.gameDay||''}\n`; (gw.week||[]).forEach(w=>s+=`• ${w.day}${w.tag?' ('+w.tag+')':''}: ${w.fuel}\n`); s+=`Game day:\n`; (gw.gameDayTimeline||[]).forEach(t=>s+=`   - ${t.time}: ${t.what}\n`); if(gw.note) s+=`${gw.note}\n`; }
   if(pl.perfNotes) s+=`\nPERFORMANCE\n${pl.perfNotes}\n`;
   s+=`\nTRAINING — ${(pl.training&&pl.training.focus)||''}\n`; ((pl.training&&pl.training.week)||[]).forEach(w=>s+=`• ${w.day}: ${w.session}\n`);
   if((pl.moves||[]).length){ s+=`\nHOW-TO DEMOS (tap to watch)\n`; pl.moves.forEach(m=>s+=`• ${m}: ${demoUrl(m).url}\n`); }
@@ -837,6 +934,8 @@ const homeLink=byId('homeLink'); if(homeLink) homeLink.onclick=()=>renderHome();
   var tl=byId('tabLogin'); if(tl) tl.addEventListener('click', function(){ setGateMode('login'); });
   var ab=byId('acGo'); if(ab) ab.addEventListener('click', submitActivate);
   var ac=byId('acCode'); if(ac) ac.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitActivate(); } });
+  var gd=byId('gwDayRow'); if(gd) gd.querySelectorAll('[data-d]').forEach(function(b){ b.addEventListener('click', function(){ genGameWeek(b.dataset.d); }); });
+  var gc=byId('gwCancel'); if(gc) gc.addEventListener('click', closeGameWeek);
   var cc=byId('coachChip'); if(cc) cc.addEventListener('click', openProfile);
   var cs=byId('cpSave'); if(cs) cs.addEventListener('click', saveProfile);
   var clo=byId('cpLogout'); if(clo) clo.addEventListener('click', logout);
@@ -856,6 +955,7 @@ async function startSharedMode(tok){
     if(!j.ok||!j.share){ view.innerHTML='<div class="card"><div class="card-h">Plan not found</div><div class="block">This link is no longer available. Ask your coach to resend it.</div></div>'; return; }
     var sh=j.share;
     window.__SHARED_COACH=sh.coach||null;
+    window.__SHARED_GAMEWEEK=sh.gameWeek||null;
     Object.assign(OB, sh.form||{});
     renderPlan(sh.plan);
   }catch(e){ view.innerHTML='<div class="card"><div class="card-h">Couldn’t load the plan</div><div class="block">Check your connection and try the link again.</div></div>'; }
