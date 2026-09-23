@@ -115,14 +115,24 @@ app.post('/api/signup', (req, res) => {
   res.json({ ok: true, token, coach: publicUser(u) });
 });
 
+// Brute-force guard for login: lock a given email+IP after too many wrong PINs.
+const _loginFails = new Map();
+function loginKey(req, email) { const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'x').toString().split(',')[0].trim(); return ip + '|' + email; }
+function loginLocked(key) { const e = _loginFails.get(key); if (!e) return false; if (Date.now() > e.until) { _loginFails.delete(key); return false; } return e.count >= 6; }
+function noteLoginFail(key) { const e = _loginFails.get(key) || { count: 0, until: 0 }; e.count += 1; e.until = Date.now() + 15 * 60000; _loginFails.set(key, e); }
+setInterval(() => { const now = Date.now(); for (const [k, v] of _loginFails) if (now > v.until) _loginFails.delete(k); }, 20 * 60000).unref();
+
 // POST /api/login — returning coach (email + PIN) -> a fresh token.
 app.post('/api/login', (req, res) => {
   const b = req.body || {};
   const email = normEmail(b.email);
   const pin = String(b.pin || '').trim();
+  const key = loginKey(req, email);
+  if (loginLocked(key)) return res.status(429).json({ error: 'locked', message: 'Too many wrong tries — wait 15 minutes and try again.' });
   const u = USERS[email];
-  if (!u || !u.pinHash) return res.status(404).json({ error: 'no_account', message: 'No account for that email — sign up first.' });
-  if (hashPin(pin, u.pinSalt) !== u.pinHash) return res.status(401).json({ error: 'bad_login', message: 'Wrong PIN. Try again.' });
+  if (!u || !u.pinHash) { noteLoginFail(key); return res.status(404).json({ error: 'no_account', message: 'No account for that email — sign up first.' }); }
+  if (hashPin(pin, u.pinSalt) !== u.pinHash) { noteLoginFail(key); return res.status(401).json({ error: 'bad_login', message: 'Wrong PIN. Try again.' }); }
+  _loginFails.delete(key);
   const token = addToken(u); saveUsers();
   res.json({ ok: true, token, coach: publicUser(u) });
 });
