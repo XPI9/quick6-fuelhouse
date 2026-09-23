@@ -736,7 +736,7 @@ function renderPlan(d){
     ${watch?`<div class="sec"><div class="watch"><div class="wh">${I.flag} Coach — watch for</div><ul>${watch}</ul></div></div>`:''}
 
     ${(function(){var co=currentCoach();if(!co||!co.name)return '';return `<div class="coachcredit">${co.photo?`<img src="${esc(co.photo)}" alt="">`:`<span class="cc-i">${esc(initials(co.name))}</span>`}<div><b>Coach ${esc(co.name)}</b>${co.school?` &middot; ${esc(co.school)}`:''}</div></div>`;})()}
-    <div class="disclaimer disclaimer-hide">Quick6 FuelHouse gives coaching guidance for healthy athletes — it is <b>not medical or dietary treatment</b>. A trainer should review every plan, and any athlete with a medical condition, injury, or eating concern should see a physician or registered dietitian.</div>
+    <div class="disclaimer disclaimer-hide">${(window.__BRAND&&window.__BRAND.name)||'Athlete Fuel'} gives coaching guidance for healthy athletes — it is <b>not medical or dietary treatment</b>. A trainer should review every plan, and any athlete with a medical condition, injury, or eating concern should see a physician or registered dietitian.</div>
   </div>
 
   ${window.__SHARED ? `
@@ -764,7 +764,7 @@ function renderPlan(d){
 
 function planText(d){
   const t=d.targets,pl=d.plan,a=d.athlete;
-  let s=`QUICK6 FUELHOUSE — ${(a.name||'Athlete').toUpperCase()}\n${a.positionLabel} · ${t.goalLabel} · ${t.weightLb} lb\n`;
+  let s=`${((window.__BRAND&&window.__BRAND.name)||'Athlete Fuel').toUpperCase()} — ${(a.name||'Athlete').toUpperCase()}\n${a.positionLabel} · ${t.goalLabel} · ${t.weightLb} lb\n`;
   if(pl.headline) s+=`\n${pl.headline}\n`;
   if(pl.summary) s+=`${pl.summary}\n`;
   if(pl.progressionNote) s+=`\nPROGRESS SINCE LAST TEST\n${pl.progressionNote}\n`;
