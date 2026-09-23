@@ -133,6 +133,23 @@ app.get('/api/me', (req, res) => {
   res.json({ ok: true, coach: publicUser(u) });
 });
 
+// POST /api/admin/reset-pin — owner resets any coach's PIN (gated by LEAD_ADMIN_KEY).
+app.post('/api/admin/reset-pin', (req, res) => {
+  const key = process.env.LEAD_ADMIN_KEY;
+  const b = req.body || {};
+  if (!key || b.key !== key) return res.status(403).json({ error: 'forbidden', message: 'Wrong admin key.' });
+  const email = normEmail(b.email);
+  const pin = String(b.pin || '').trim();
+  const u = USERS[email];
+  if (!u) return res.status(404).json({ error: 'no_account', message: 'No account found for ' + email });
+  if (!/^\d{4,8}$/.test(pin)) return res.status(400).json({ error: 'bad_pin', message: 'PIN must be 4–8 digits.' });
+  const salt = crypto.randomBytes(12).toString('hex');
+  u.pinSalt = salt; u.pinHash = hashPin(pin, salt); u.tokens = []; u.token = undefined;
+  saveUsers();
+  console.log('[reset-pin]', email);
+  res.json({ ok: true, message: 'PIN reset for ' + email + ' — they can log in now.' });
+});
+
 // POST /api/profile — update the coach's own name / school / photo.
 app.post('/api/profile', (req, res) => {
   const u = requireUser(req, res); if (!u) return;
